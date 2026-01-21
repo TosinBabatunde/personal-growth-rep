@@ -175,11 +175,6 @@ export default function FeedbackScreen() {
 
       if (error) throw error;
 
-      await supabase
-        .from('feedback_cycles')
-        .update({ requests_sent: cycle.requests_sent + 1 })
-        .eq('id', cycle.id);
-
       const feedbackUrl = `${getAppUrl()}/feedback/submit?token=${token}`;
 
       const verificationCode = cleanedName.length >= 4

@@ -194,28 +194,20 @@ export default function SubmitFeedbackScreen() {
         .eq('id', request.cycle_id)
         .single();
 
-      if (cycleData) {
-        const newCount = cycleData.submissions_received + 1;
-        await supabase
-          .from('feedback_cycles')
-          .update({ submissions_received: newCount })
-          .eq('id', request.cycle_id);
-
-        if (newCount % 10 === 0 && newCount <= 50) {
-          const apiUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/generate-summary`;
-          await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              cycle_id: request.cycle_id,
-              user_id: request.sender_id,
-              submission_count: newCount,
-            }),
-          });
-        }
+      if (cycleData && cycleData.submissions_received % 10 === 0 && cycleData.submissions_received <= 50) {
+        const apiUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/generate-summary`;
+        await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            cycle_id: request.cycle_id,
+            user_id: request.sender_id,
+            submission_count: cycleData.submissions_received,
+          }),
+        });
       }
 
       router.replace({
