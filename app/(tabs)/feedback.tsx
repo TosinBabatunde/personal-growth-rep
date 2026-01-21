@@ -155,7 +155,10 @@ export default function FeedbackScreen() {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 30);
 
-      const verificationHint = finalContactName.slice(-4).toLowerCase();
+      const cleanedName = finalContactName.replace(/\s+/g, ' ').trim();
+      const verificationHint = cleanedName.length >= 4
+        ? cleanedName.slice(-4).toLowerCase()
+        : cleanedName.toLowerCase();
 
       const { data, error } = await supabase
         .from('feedback_requests')
@@ -180,8 +183,12 @@ export default function FeedbackScreen() {
       const feedbackUrl = `${getAppUrl()}/feedback/submit?token=${token}`;
 
       try {
+        const verificationCode = cleanedName.length >= 4
+          ? cleanedName.slice(-4)
+          : cleanedName;
+
         const shareResult = await Share.share({
-          message: `Hi! I'm working on personal growth and would really value your honest feedback. Could you take a few minutes to share your thoughts?\n\n${feedbackUrl}\n\nWhen you open the link, enter the last 4 characters of: ${finalContactName}`,
+          message: `Hi! I'm working on personal growth and would really value your honest feedback. Could you take a few minutes to share your thoughts?\n\n${feedbackUrl}\n\nVerification code: ${verificationCode}`,
           title: 'Feedback Request',
         });
 
@@ -194,14 +201,14 @@ export default function FeedbackScreen() {
           navigator.clipboard.writeText(feedbackUrl);
           Alert.alert(
             'Link Created!',
-            `Link copied to clipboard! Share it with ${finalContactName} via text, email, or messaging app.\n\nIMPORTANT: Tell them to enter the last 4 characters of "${finalContactName}" when opening the link.\n\nThe link expires in 30 days.`
+            `Link copied to clipboard! Share it with ${finalContactName} via text, email, or messaging app.\n\nIMPORTANT: Tell them to enter this verification code when opening the link: ${verificationCode}\n\nThe link expires in 30 days.`
           );
           setPhoneNumber('');
           loadData();
         } else {
           Alert.alert(
             'Link Created!',
-            `Your feedback link:\n\n${feedbackUrl}\n\nIMPORTANT: Tell ${finalContactName} to enter the last 4 characters of "${finalContactName}" when opening the link.\n\nThe link is single-use and expires in 30 days.`
+            `Your feedback link:\n\n${feedbackUrl}\n\nIMPORTANT: Tell ${finalContactName} to enter this verification code when opening the link: ${verificationCode}\n\nThe link is single-use and expires in 30 days.`
           );
         }
       }
@@ -226,15 +233,20 @@ export default function FeedbackScreen() {
           onPress: async () => {
             const feedbackUrl = `${getAppUrl()}/feedback/submit?token=${token}`;
 
+            const cleanedContactName = contactName.replace(/\s+/g, ' ').trim();
+            const verCode = cleanedContactName.length >= 4
+              ? cleanedContactName.slice(-4)
+              : cleanedContactName;
+
             if (Platform.OS === 'web' && navigator.clipboard) {
               navigator.clipboard.writeText(feedbackUrl);
-              Alert.alert('Link Copied', 'Feedback link copied to clipboard. Share it with your contact and remind them to enter the last 4 characters of their identifier.');
+              Alert.alert('Link Copied', `Feedback link copied to clipboard. Share it with your contact and remind them to enter this verification code: ${verCode}`);
               return;
             }
 
             try {
               await Share.share({
-                message: `Hi! I'm working on personal growth and would really value your honest feedback. Could you take a few minutes to share your thoughts?\n\n${feedbackUrl}\n\nWhen you open the link, enter the last 4 characters of: ${contactName}`,
+                message: `Hi! I'm working on personal growth and would really value your honest feedback. Could you take a few minutes to share your thoughts?\n\n${feedbackUrl}\n\nVerification code: ${verCode}`,
                 title: 'Feedback Request',
               });
             } catch (error) {

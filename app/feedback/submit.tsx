@@ -136,10 +136,14 @@ export default function SubmitFeedbackScreen() {
       return;
     }
 
-    const input = verificationInput.trim().slice(-4).toLowerCase();
+    const cleanedInput = verificationInput.trim().replace(/\s+/g, ' ').toLowerCase();
     const hint = request.verification_hint.toLowerCase();
 
-    if (input === hint) {
+    const inputCode = cleanedInput.length >= 4
+      ? cleanedInput.slice(-4)
+      : cleanedInput;
+
+    if (inputCode === hint || cleanedInput === hint) {
       setVerified(true);
       setError(null);
     } else {
@@ -258,16 +262,15 @@ export default function SubmitFeedbackScreen() {
 
         <View style={styles.verificationCard}>
           <Text style={styles.verificationLabel}>
-            Enter the last 4 characters from the message you received:
+            Enter the verification code from the message:
           </Text>
           <TextInput
             style={styles.verificationInput}
-            placeholder="Last 4 characters"
+            placeholder="Enter code"
             placeholderTextColor="#9CA3AF"
             value={verificationInput}
             onChangeText={setVerificationInput}
             autoCapitalize="none"
-            maxLength={4}
           />
           <TouchableOpacity
             style={[styles.verifyButton, !verificationInput.trim() && styles.verifyButtonDisabled]}
