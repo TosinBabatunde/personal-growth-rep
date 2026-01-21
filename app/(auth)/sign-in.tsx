@@ -55,7 +55,7 @@ export default function SignInScreen() {
       <View style={styles.content}>
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            <Heart size={48} color="#FF6B6B" strokeWidth={2} />
+            <Heart size={48} color="#10B981" strokeWidth={2} />
           </View>
           <Text style={styles.title}>Welcome to Growth</Text>
           <Text style={styles.subtitle}>
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   button: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#10B981',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   toggleText: {
-    color: '#FF6B6B',
+    color: '#10B981',
     fontSize: 14,
     fontWeight: '600',
   },
