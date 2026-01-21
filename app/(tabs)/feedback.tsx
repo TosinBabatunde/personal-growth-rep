@@ -182,11 +182,11 @@ export default function FeedbackScreen() {
 
       const feedbackUrl = `${getAppUrl()}/feedback/submit?token=${token}`;
 
-      try {
-        const verificationCode = cleanedName.length >= 4
-          ? cleanedName.slice(-4)
-          : cleanedName;
+      const verificationCode = cleanedName.length >= 4
+        ? cleanedName.slice(-4)
+        : cleanedName;
 
+      try {
         const shareResult = await Share.share({
           message: `Hi! I'm working on personal growth and would really value your honest feedback. Could you take a few minutes to share your thoughts?\n\n${feedbackUrl}\n\nVerification code: ${verificationCode}`,
           title: 'Feedback Request',
