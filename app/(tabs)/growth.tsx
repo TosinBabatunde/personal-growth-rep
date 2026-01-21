@@ -28,6 +28,11 @@ interface FeedbackSummary {
   generated_at: string;
 }
 
+interface FeedbackCycle {
+  id: string;
+  submissions_received: number;
+}
+
 interface GrowthRecommendation {
   id: string;
   recommendation_type: string;
@@ -50,6 +55,7 @@ interface TraitScore {
 export default function GrowthScreen() {
   const { profile } = useAuth();
   const [summaries, setSummaries] = useState<FeedbackSummary[]>([]);
+  const [cycle, setCycle] = useState<FeedbackCycle | null>(null);
   const [recommendations, setRecommendations] = useState<GrowthRecommendation[]>([]);
   const [remainingTraits, setRemainingTraits] = useState<TraitScore[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +69,17 @@ export default function GrowthScreen() {
     }
 
     try {
+      const { data: cycleData, error: cycleError } = await supabase
+        .from('feedback_cycles')
+        .select('id, submissions_received')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cycleError) throw cycleError;
+      setCycle(cycleData);
+
       const { data: summariesData, error: summariesError } = await supabase
         .from('feedback_summaries')
         .select('*')
@@ -181,7 +198,7 @@ export default function GrowthScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Your Growth Journey</Text>
         <Text style={styles.subtitle}>
-          Insights from {latestSummary.submission_count} trusted people who care
+          Insights from {cycle?.submissions_received || latestSummary.submission_count} trusted people who care
           about you
         </Text>
       </View>
