@@ -100,7 +100,17 @@ export default function FeedbackScreen() {
     if (Platform.OS === 'web') {
       return window.location.origin;
     }
-    return process.env.EXPO_PUBLIC_APP_URL || 'https://your-app.com';
+    // For mobile apps, use the configured URL or fall back to window location
+    const configuredUrl = process.env.EXPO_PUBLIC_APP_URL;
+    if (configuredUrl && configuredUrl.trim() !== '') {
+      return configuredUrl;
+    }
+    // If no URL is configured, provide a helpful error
+    Alert.alert(
+      'Configuration Required',
+      'Please set EXPO_PUBLIC_APP_URL in your .env file to your deployed web URL (e.g., https://yourapp.bolt.new or your custom domain)'
+    );
+    return 'https://example.com'; // Temporary fallback
   };
 
   const handleSendRequest = async () => {
