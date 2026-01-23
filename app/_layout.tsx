@@ -14,6 +14,7 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="feedback/submit" />
+        <Stack.Screen name="feedback/thank-you" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
