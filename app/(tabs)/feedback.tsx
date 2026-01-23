@@ -98,9 +98,12 @@ export default function FeedbackScreen() {
 
   const getAppUrl = () => {
     if (Platform.OS === 'web') {
-      return window.location.origin;
+      // Always use the current window location on web - this is the most reliable
+      if (typeof window !== 'undefined' && window.location) {
+        return window.location.origin;
+      }
     }
-    // For mobile apps, use the configured URL or fall back to window location
+    // For mobile apps, use the configured URL
     const configuredUrl = process.env.EXPO_PUBLIC_APP_URL;
     if (configuredUrl && configuredUrl.trim() !== '') {
       return configuredUrl;
