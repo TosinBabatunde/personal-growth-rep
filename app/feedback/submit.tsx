@@ -180,13 +180,15 @@ export default function SubmitFeedbackScreen() {
 
       if (submissionsError) throw submissionsError;
 
-      await supabase
+      const { error: updateError } = await supabase
         .from('feedback_requests')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString(),
         })
         .eq('id', request.id);
+
+      if (updateError) throw updateError;
 
       const { data: cycleData } = await supabase
         .from('feedback_cycles')
