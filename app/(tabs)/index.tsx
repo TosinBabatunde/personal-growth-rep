@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -42,8 +42,17 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ✅ Key: ensure content clears the actual tab bar
+  // ✅ Keep content above the tab bar + safe area
   const bottomPad = tabBarHeight + Math.max(16, insets.bottom);
+
+  // ✅ Extra-safe first name extraction
+  const firstName = useMemo(() => {
+    const fullName = profile?.full_name ?? '';
+    const cleaned = fullName.trim().replace(/\s+/g, ' ');
+    if (!cleaned) return 'there';
+    const [first] = cleaned.split(' ');
+    return first || 'there';
+  }, [profile?.full_name]);
 
   const loadCycle = async () => {
     if (!profile?.id) {
@@ -113,7 +122,6 @@ export default function HomeScreen() {
       setCycle(data);
 
       await new Promise((resolve) => setTimeout(resolve, 100));
-
       router.push('/(tabs)/feedback');
     } catch (error: any) {
       console.error('Error starting cycle:', error);
@@ -161,14 +169,19 @@ export default function HomeScreen() {
       }
     >
       <View style={styles.header}>
+        {/* ✅ Keep icon centered no matter what the name does */}
         <View style={styles.greetingRow}>
-          <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
-            Hello, {profile?.full_name || 'there'}
-          </Text>
+          <View style={styles.greetingTextWrap}>
+            <Text style={styles.name} numberOfLines={2}>
+              Hello, {firstName}
+            </Text>
+          </View>
+
           <View style={styles.iconContainer}>
             <Heart size={32} color="#FF6B6B" strokeWidth={2} />
           </View>
         </View>
+
         <Text style={styles.subtitle}>
           Your journey to growth through trusted feedback
         </Text>
@@ -221,7 +234,9 @@ export default function HomeScreen() {
               <CheckCircle size={24} color="#10B981" strokeWidth={2} />
               <Text style={styles.statValue}>{cycle.submissions_received}</Text>
               <Text style={styles.statLabel}>Responses</Text>
-              <Text style={styles.statSubtext}>Next at {getNextMilestone()}</Text>
+              <Text style={styles.statSubtext}>
+                Next at {getNextMilestone()}
+              </Text>
             </View>
           </View>
 
@@ -316,18 +331,23 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingTop: 40,
   },
+
+  // ✅ Icon stays centered because it sits in a fixed-size wrapper
+  // and the text area is what grows/wraps.
   greetingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
     gap: 12,
+  },
+  greetingTextWrap: {
+    flex: 1,
+    paddingRight: 8,
   },
   name: {
     fontSize: 32,
     fontWeight: '700',
     color: '#111827',
-    flex: 1,
     lineHeight: 38,
   },
   iconContainer: {
@@ -338,6 +358,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   subtitle: {
     fontSize: 16,
     color: '#6B7280',
