@@ -65,7 +65,7 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = async () => {
-  const goToSignIn = () => router.replace('/(auth)/sign-in'); // adjust if needed
+  const goToSignIn = () => router.replace('/(auth)/sign-in');
 
   if (Platform.OS === 'web') {
     if (window.confirm('Are you sure you want to sign out?')) {
