@@ -11,15 +11,17 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { Heart } from 'lucide-react-native';
+import { Heart, Eye, EyeOff } from 'lucide-react-native';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const router = useRouter();
-  const { signInWithEmail, signUpWithEmail } = useAuth();
+  const { signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
@@ -44,6 +46,27 @@ export default function SignInScreen() {
       Alert.alert('Error', error.message || `Failed to ${isSignUp ? 'sign up' : 'sign in'}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert('Email Required', 'Please enter your email address to reset your password');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      await resetPassword(email);
+      Alert.alert(
+        'Password Reset Email Sent',
+        'Check your email for a link to reset your password. If it doesn\'t appear within a few minutes, check your spam folder.',
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to send password reset email');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -78,16 +101,40 @@ export default function SignInScreen() {
           />
 
           <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your password"
-            placeholderTextColor="#9CA3AF"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete={isSignUp ? 'password-new' : 'password'}
-            textContentType="password"
-          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Enter your password"
+              placeholderTextColor="#9CA3AF"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoComplete={isSignUp ? 'password-new' : 'password'}
+              textContentType="password"
+            />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? (
+                <EyeOff size={20} color="#6B7280" />
+              ) : (
+                <Eye size={20} color="#6B7280" />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {!isSignUp && (
+            <TouchableOpacity
+              onPress={handleForgotPassword}
+              disabled={resetLoading}
+              style={styles.forgotPasswordButton}
+            >
+              <Text style={styles.forgotPasswordText}>
+                {resetLoading ? 'Sending...' : 'Forgot Password?'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -170,6 +217,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
     marginBottom: 24,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#111827',
+  },
+  eyeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  forgotPasswordText: {
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: '600',
   },
   button: {
     backgroundColor: '#10B981',

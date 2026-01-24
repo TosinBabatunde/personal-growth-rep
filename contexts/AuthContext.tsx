@@ -15,6 +15,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   refreshProfile: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -128,6 +129,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.EXPO_PUBLIC_APP_URL}/(auth)/sign-in`,
+    });
+
+    if (error) throw error;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -140,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut,
         updateProfile,
         refreshProfile,
+        resetPassword,
       }}
     >
       {children}
