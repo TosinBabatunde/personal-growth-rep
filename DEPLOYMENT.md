@@ -90,7 +90,11 @@ This app is configured for easy deployment to Netlify.
 3. **Test Your App:**
    - Visit your Netlify URL
    - Test sign up and sign in
-   - Test password reset flow (it should now work!)
+   - Test password reset flow:
+     - Click "Forgot Password?" on sign-in page
+     - Check your email for the reset link
+     - Click the link - you should be taken to a dedicated "Reset Password" page
+     - Enter and confirm your new password
    - Try creating a feedback request
    - Test the feedback submission flow on mobile
 

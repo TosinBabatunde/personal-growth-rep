@@ -134,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const options: any = {};
 
     if (appUrl && !appUrl.includes('bolt.new')) {
-      options.redirectTo = `${appUrl}/(auth)/sign-in`;
+      options.redirectTo = `${appUrl}/(auth)/reset-password`;
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, options);
