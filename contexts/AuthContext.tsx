@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setProfile(null);
       }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -152,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   if (appUrl) {
     const base = appUrl.replace(/\/$/, '');
-    options.redirectTo = `${appUrl}/reset-password`;
+    options.redirectTo = `${base}/reset-password`;
   }
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, options);
