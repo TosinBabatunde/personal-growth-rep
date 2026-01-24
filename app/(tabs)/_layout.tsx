@@ -1,9 +1,19 @@
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/contexts/AuthContext';
 import { Home, MessageCircle, TrendingUp, User } from 'lucide-react-native';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { user, loading } = useAuth();
+
+  // STEP 4: wait for auth to initialize
+  if (loading) return null;
+
+  // STEP 4: block tabs if logged out
+  if (!user) {
+    return <Redirect href="/(auth)/sign-in" />;
+  }
 
   return (
     <Tabs
