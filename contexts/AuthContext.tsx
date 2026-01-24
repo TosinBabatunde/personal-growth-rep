@@ -101,11 +101,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signOut = async () => {
+ const signOut = async () => {
+  try {
+    setLoading(true);
+
+    // Clear local state immediately
+    setSession(null);
+    setUser(null);
+    setProfile(null);
+
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-    setProfile(null);
-  };
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user) throw new Error('No user logged in');
