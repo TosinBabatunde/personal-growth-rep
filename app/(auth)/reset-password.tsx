@@ -26,55 +26,89 @@ export default function ResetPasswordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+useEffect(() => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-    const checkSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+  const checkSession = async () => {
+    try {
+      // Step 6B: On web, activate session from reset link (code or hash tokens)
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
 
-        if (session) {
-          setCheckingSession(false);
-          return;
+        // 1) PKCE (?code=...)
+        const code = url.searchParams.get('code');
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) {
+            console.error('exchangeCodeForSession error:', exchangeError);
+          } else {
+            url.searchParams.delete('code');
+            window.history.replaceState({}, document.title, url.toString());
+          }
         }
 
-        if (error) {
-          console.error('Session check error:', error);
+        // 2) Hash tokens (#access_token=...&refresh_token=...)
+        const hash = window.location.hash?.replace('#', '');
+        if (hash) {
+          const params = new URLSearchParams(hash);
+          const access_token = params.get('access_token');
+          const refresh_token = params.get('refresh_token');
+
+          if (access_token && refresh_token) {
+            const { error: setSessionError } = await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+
+            if (setSessionError) {
+              console.error('setSession error:', setSessionError);
+            } else {
+              window.history.replaceState({}, document.title, window.location.pathname);
+            }
+          }
         }
-
-        timeoutId = setTimeout(() => {
-          setCheckingSession(false);
-          Alert.alert(
-            'Session Required',
-            'Please click the password reset link from your email to continue.',
-            [
-              {
-                text: 'OK',
-                onPress: () => router.replace('/(auth)/sign-in'),
-              },
-            ]
-          );
-        }, 2000);
-      } catch (err) {
-        console.error('Error checking session:', err);
-        setCheckingSession(false);
       }
-    };
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (session) {
         setCheckingSession(false);
-        if (timeoutId) clearTimeout(timeoutId);
+         if (timeoutId) clearTimeout(timeoutId);
+        return;
       }
-    });
 
-    checkSession();
+      if (error) {
+        console.error('Session check error:', error);
+      }
 
-    return () => {
+      timeoutId = setTimeout(() => {
+        setCheckingSession(false);
+        Alert.alert(
+          'Session Required',
+          'Please click the password reset link from your email to continue.',
+          [{ text: 'OK', onPress: () => router.replace('/(auth)/sign-in') }]
+        );
+      }, 2000);
+    } catch (err) {
+      console.error('Error checking session:', err);
+      setCheckingSession(false);
+    }
+  };
+
+  const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+      setCheckingSession(false);
       if (timeoutId) clearTimeout(timeoutId);
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
+    }
+  });
+
+  checkSession();
+
+  return () => {
+    if (timeoutId) clearTimeout(timeoutId);
+    authListener.subscription.unsubscribe();
+  };
+}, []);
 
   const handleResetPassword = async () => {
     setError('');
