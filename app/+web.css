@@ -1,0 +1,20 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* Use the visible viewport height, not classic 100vh (fixes Android Chrome + iOS Safari) */
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+}
+
+/* Safe-area padding for iOS home indicator (harmless elsewhere) */
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
