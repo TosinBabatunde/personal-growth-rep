@@ -43,30 +43,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadUserProfile(session.user.id);
-      }
-      setLoading(false);
-    });
+  let isMounted = true;
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+  const init = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) console.error('getSession error:', error);
+
+      if (!isMounted) return;
+
       setSession(session);
       setUser(session?.user ?? null);
+
       if (session?.user) {
-        loadUserProfile(session.user.id);
+        loadUserProfile(session.user.id).catch((err) =>
+          console.error('Initial profile load error:', err)
+        );
       } else {
         setProfile(null);
       }
-      setLoading(false);
-    });
+    } finally {
+      if (isMounted) setLoading(false);
+    }
+  };
 
-    return () => subscription.unsubscribe();
-  }, []);
+  init();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    setSession(session);
+    setUser(session?.user ?? null);
+
+    if (session?.user) {
+      loadUserProfile(session.user.id).catch((err) =>
+        console.error('Profile load error:', err)
+      );
+    } else {
+      setProfile(null);
+    }
+  });
+
+  return () => {
+    isMounted = false;
+    subscription.unsubscribe();
+  };
+}, []);
 
   const signUpWithEmail = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({
