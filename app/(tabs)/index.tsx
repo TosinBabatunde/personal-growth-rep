@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
@@ -35,9 +36,14 @@ export default function HomeScreen() {
   const { profile } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+
   const [cycle, setCycle] = useState<FeedbackCycle | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // ✅ Key: ensure content clears the actual tab bar
+  const bottomPad = tabBarHeight + Math.max(16, insets.bottom);
 
   const loadCycle = async () => {
     if (!profile?.id) {
@@ -106,13 +112,15 @@ export default function HomeScreen() {
 
       setCycle(data);
 
-      // Small delay to ensure database transaction completes
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       router.push('/(tabs)/feedback');
     } catch (error: any) {
       console.error('Error starting cycle:', error);
-      Alert.alert('Error', error.message || 'Failed to start new cycle. Please try again.');
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to start new cycle. Please try again.'
+      );
     }
   };
 
@@ -137,7 +145,7 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { paddingBottom: bottomPad }]}>
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -146,7 +154,8 @@ export default function HomeScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
+      contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
+      keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
@@ -212,9 +221,7 @@ export default function HomeScreen() {
               <CheckCircle size={24} color="#10B981" strokeWidth={2} />
               <Text style={styles.statValue}>{cycle.submissions_received}</Text>
               <Text style={styles.statLabel}>Responses</Text>
-              <Text style={styles.statSubtext}>
-                Next at {getNextMilestone()}
-              </Text>
+              <Text style={styles.statSubtext}>Next at {getNextMilestone()}</Text>
             </View>
           </View>
 
@@ -293,13 +300,13 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
+    paddingHorizontal: 20,
   },
   loadingText: {
     fontSize: 16,
