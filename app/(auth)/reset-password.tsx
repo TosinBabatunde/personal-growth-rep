@@ -22,25 +22,58 @@ export default function ResetPasswordScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [checkingSession, setCheckingSession] = useState(true);
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    // Check if user arrived here with a valid reset token
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error || !session) {
-        Alert.alert(
-          'Invalid Link',
-          'This password reset link is invalid or has expired. Please request a new one.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(auth)/sign-in'),
-            },
-          ]
-        );
+    let timeoutId: NodeJS.Timeout;
+
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (session) {
+          setCheckingSession(false);
+          return;
+        }
+
+        if (error) {
+          console.error('Session check error:', error);
+        }
+
+        timeoutId = setTimeout(() => {
+          setCheckingSession(false);
+          Alert.alert(
+            'Session Required',
+            'Please click the password reset link from your email to continue.',
+            [
+              {
+                text: 'OK',
+                onPress: () => router.replace('/(auth)/sign-in'),
+              },
+            ]
+          );
+        }, 2000);
+      } catch (err) {
+        console.error('Error checking session:', err);
+        setCheckingSession(false);
+      }
+    };
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+        setCheckingSession(false);
+        if (timeoutId) clearTimeout(timeoutId);
       }
     });
+
+    checkSession();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const handleResetPassword = async () => {
@@ -69,11 +102,19 @@ export default function ResetPasswordScreen() {
 
     setLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        throw new Error('No active session. Please click the password reset link from your email again.');
+      }
+
       const { error } = await supabase.auth.updateUser({
         password: password,
       });
 
       if (error) throw error;
+
+      await supabase.auth.signOut();
 
       Alert.alert(
         'Password Updated',
@@ -93,6 +134,14 @@ export default function ResetPasswordScreen() {
       setLoading(false);
     }
   };
+
+  if (checkingSession) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Verifying reset link...</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -205,6 +254,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
   },
   scrollContent: {
     flexGrow: 1,
