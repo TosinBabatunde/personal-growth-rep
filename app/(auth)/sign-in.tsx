@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -25,7 +25,13 @@ export default function SignInScreen() {
   const [error, setError] = useState('');
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
+  const { user, loading: authLoading, signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !loading && user && !isSignUp) {
+      router.replace('/(tabs)');
+    }
+  }, [authLoading, loading, user, isSignUp, router]);
 
   const handleSubmit = async () => {
     setError('');
@@ -51,6 +57,7 @@ export default function SignInScreen() {
         router.replace('/(auth)/complete-profile');
       } else {
         await signInWithEmail(email, password);
+        //router.replace('/(tabs)');
       }
     } catch (error: any) {
       const errorMsg = error.message || `Failed to ${isSignUp ? 'sign up' : 'sign in'}`;
