@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         full_name: '',
       }, { onConflict: 'id' });
 
-      await loadUserProfile(data.user.id);
+      loadUserProfile(data.user.id).catch(console.error);
     }
   };
 
@@ -99,10 +99,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
 
     if (data.user) {
-      await loadUserProfile(data.user.id);
+      // fire-and-forget so sign-in doesn't hang
+      loadUserProfile(data.user.id).catch((err) =>
+        console.error('Profile load failed after sign-in:', err)
+      );
     }
   };
-
+  
  const signOut = async () => {
   try {
     setLoading(true);
