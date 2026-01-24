@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
@@ -17,7 +18,6 @@ import {
   LogOut,
   Calendar,
   BarChart3,
-  Info,
   Heart,
 } from 'lucide-react-native';
 
@@ -35,6 +35,8 @@ export default function ProfileScreen() {
   const { profile, signOut } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+
   const [cycles, setCycles] = useState<CycleHistory[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -65,36 +67,35 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = async () => {
-  const goToSignIn = () => router.replace('/(auth)/sign-in');
+    const goToSignIn = () => router.replace('/(auth)/sign-in');
 
-  if (Platform.OS === 'web') {
-    if (window.confirm('Are you sure you want to sign out?')) {
-      try {
-        await signOut();
-        goToSignIn();
-      } catch (error: any) {
-        window.alert(error.message || 'Failed to sign out');
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to sign out?')) {
+        try {
+          await signOut();
+          goToSignIn();
+        } catch (error: any) {
+          window.alert(error.message || 'Failed to sign out');
+        }
       }
-    }
-  } else {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut();
-            goToSignIn();
-          } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to sign out');
-          }
+    } else {
+      Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+              goToSignIn();
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to sign out');
+            }
+          },
         },
-      },
-    ]);
-  }
-};
-
+      ]);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -125,7 +126,10 @@ export default function ProfileScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: tabBarHeight + Math.max(16, insets.bottom) },
+      ]}
     >
       <View style={styles.header}>
         <View style={styles.profileIcon}>
@@ -181,6 +185,7 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
               </View>
+
               <View style={styles.cycleStats}>
                 <View style={styles.cycleStat}>
                   <Text style={styles.cycleStatValue}>{cycle.requests_sent}</Text>
@@ -193,11 +198,13 @@ export default function ProfileScreen() {
                   <Text style={styles.cycleStatLabel}>Responses</Text>
                 </View>
               </View>
+
               {cycle.completed_at && (
                 <Text style={styles.completedText}>
                   Completed {new Date(cycle.completed_at).toLocaleDateString()}
                 </Text>
               )}
+
               {cycle.next_cycle_available_at &&
                 new Date(cycle.next_cycle_available_at) > new Date() && (
                   <Text style={styles.cooldownText}>
@@ -257,7 +264,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
