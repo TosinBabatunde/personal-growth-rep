@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
@@ -35,9 +36,23 @@ export default function HomeScreen() {
   const { profile } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+
   const [cycle, setCycle] = useState<FeedbackCycle | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // ✅ Keep content above the tab bar + safe area
+  const bottomPad = tabBarHeight + Math.max(16, insets.bottom);
+
+  // ✅ Extra-safe first name extraction
+  const firstName = useMemo(() => {
+    const fullName = profile?.full_name ?? '';
+    const cleaned = fullName.trim().replace(/\s+/g, ' ');
+    if (!cleaned) return 'there';
+    const [first] = cleaned.split(' ');
+    return first || 'there';
+  }, [profile?.full_name]);
 
   const loadCycle = async () => {
     if (!profile?.id) {
@@ -106,13 +121,14 @@ export default function HomeScreen() {
 
       setCycle(data);
 
-      // Small delay to ensure database transaction completes
-      await new Promise(resolve => setTimeout(resolve, 100));
-
+      await new Promise((resolve) => setTimeout(resolve, 100));
       router.push('/(tabs)/feedback');
     } catch (error: any) {
       console.error('Error starting cycle:', error);
-      Alert.alert('Error', error.message || 'Failed to start new cycle. Please try again.');
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to start new cycle. Please try again.'
+      );
     }
   };
 
@@ -137,7 +153,7 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { paddingBottom: bottomPad }]}>
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -146,20 +162,26 @@ export default function HomeScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
+      contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
+      keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
       <View style={styles.header}>
+        {/* ✅ Keep icon centered no matter what the name does */}
         <View style={styles.greetingRow}>
-          <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
-            Hello, {profile?.full_name || 'there'}
-          </Text>
+          <View style={styles.greetingTextWrap}>
+            <Text style={styles.name} numberOfLines={2}>
+              Hello, {firstName}
+            </Text>
+          </View>
+
           <View style={styles.iconContainer}>
             <Heart size={32} color="#FF6B6B" strokeWidth={2} />
           </View>
         </View>
+
         <Text style={styles.subtitle}>
           Your journey to growth through trusted feedback
         </Text>
@@ -293,13 +315,13 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
+    paddingHorizontal: 20,
   },
   loadingText: {
     fontSize: 16,
@@ -309,18 +331,23 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingTop: 40,
   },
+
+  // ✅ Icon stays centered because it sits in a fixed-size wrapper
+  // and the text area is what grows/wraps.
   greetingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
     gap: 12,
+  },
+  greetingTextWrap: {
+    flex: 1,
+    paddingRight: 8,
   },
   name: {
     fontSize: 32,
     fontWeight: '700',
     color: '#111827',
-    flex: 1,
     lineHeight: 38,
   },
   iconContainer: {
@@ -331,6 +358,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   subtitle: {
     fontSize: 16,
     color: '#6B7280',

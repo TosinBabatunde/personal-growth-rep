@@ -8,6 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
@@ -27,6 +28,7 @@ interface FeedbackSummary {
   patterns: string;
   comparison_to_previous: string | null;
   generated_at: string;
+  all_trait_scores?: any;
 }
 
 interface FeedbackCycle {
@@ -42,12 +44,6 @@ interface GrowthRecommendation {
   is_completed: boolean;
 }
 
-interface Trait {
-  id: string;
-  name: string;
-  display_order: number;
-}
-
 interface TraitScore {
   trait: string;
   score: number;
@@ -56,12 +52,17 @@ interface TraitScore {
 export default function GrowthScreen() {
   const { profile } = useAuth();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+
   const [summaries, setSummaries] = useState<FeedbackSummary[]>([]);
   const [cycle, setCycle] = useState<FeedbackCycle | null>(null);
   const [recommendations, setRecommendations] = useState<GrowthRecommendation[]>([]);
   const [remainingTraits, setRemainingTraits] = useState<TraitScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // This is the key: tab bar height + a little breathing room + safe-area.
+  const bottomPad = tabBarHeight + Math.max(16, insets.bottom);
 
   const loadData = async () => {
     if (!profile?.id) {
@@ -102,16 +103,13 @@ export default function GrowthScreen() {
       if (recommendationsError) throw recommendationsError;
       setRecommendations(recommendationsData || []);
 
-      // Get all trait scores from the summary
       if (summariesData && summariesData.length > 0) {
         const latestSummary = summariesData[0];
 
-        // Get all trait scores from the summary
-        const allTraitScores = Array.isArray(latestSummary.all_trait_scores)
-          ? latestSummary.all_trait_scores
+        const allTraitScores = Array.isArray((latestSummary as any).all_trait_scores)
+          ? (latestSummary as any).all_trait_scores
           : [];
 
-        // Get trait names that are already shown in strengths or growth
         const strengthTraits = new Set(
           Array.isArray(latestSummary.top_strengths)
             ? latestSummary.top_strengths.map((s: any) => s.trait)
@@ -123,10 +121,11 @@ export default function GrowthScreen() {
             : []
         );
 
-        // Show all remaining traits that aren't in top 3 or bottom 3
         const remaining: TraitScore[] = allTraitScores
-          .filter((scoreData: any) =>
-            !strengthTraits.has(scoreData.trait) && !growthTraits.has(scoreData.trait)
+          .filter(
+            (scoreData: any) =>
+              !strengthTraits.has(scoreData.trait) &&
+              !growthTraits.has(scoreData.trait)
           )
           .map((scoreData: any) => ({
             trait: scoreData.trait,
@@ -134,6 +133,8 @@ export default function GrowthScreen() {
           }));
 
         setRemainingTraits(remaining);
+      } else {
+        setRemainingTraits([]);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -145,6 +146,7 @@ export default function GrowthScreen() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
 
   const onRefresh = () => {
@@ -168,7 +170,7 @@ export default function GrowthScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { paddingBottom: bottomPad }]}>
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -176,7 +178,7 @@ export default function GrowthScreen() {
 
   if (summaries.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
+      <View style={[styles.emptyContainer, { paddingBottom: bottomPad }]}>
         <TrendingUp size={48} color="#9CA3AF" strokeWidth={2} />
         <Text style={styles.emptyTitle}>No Insights Yet</Text>
         <Text style={styles.emptyText}>
@@ -192,7 +194,7 @@ export default function GrowthScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
+      contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
@@ -238,21 +240,19 @@ export default function GrowthScreen() {
           Areas where you can continue to develop and grow
         </Text>
         {Array.isArray(latestSummary.growth_opportunities) &&
-          latestSummary.growth_opportunities.map(
-            (opportunity: any, index: number) => (
-              <View key={index} style={styles.opportunityItem}>
-                <View style={styles.opportunityIcon}>
-                  <TrendingUp size={20} color="#3B82F6" strokeWidth={2} />
-                </View>
-                <View style={styles.opportunityContent}>
-                  <Text style={styles.opportunityName}>{opportunity.trait}</Text>
-                  <Text style={styles.opportunityNote}>
-                    {opportunity.note || 'Focus area for development'}
-                  </Text>
-                </View>
+          latestSummary.growth_opportunities.map((opportunity: any, index: number) => (
+            <View key={index} style={styles.opportunityItem}>
+              <View style={styles.opportunityIcon}>
+                <TrendingUp size={20} color="#3B82F6" strokeWidth={2} />
               </View>
-            )
-          )}
+              <View style={styles.opportunityContent}>
+                <Text style={styles.opportunityName}>{opportunity.trait}</Text>
+                <Text style={styles.opportunityNote}>
+                  {opportunity.note || 'Focus area for development'}
+                </Text>
+              </View>
+            </View>
+          ))}
       </View>
 
       {latestSummary.patterns && (
@@ -271,7 +271,10 @@ export default function GrowthScreen() {
               {remainingTraits.map((item, index) => (
                 <View key={index} style={styles.remainingTraitRow}>
                   <Text style={styles.remainingTraitText}>
-                    {item.trait}: <Text style={styles.remainingTraitScore}>{item.score.toFixed(1)}/5</Text>
+                    {item.trait}:{' '}
+                    <Text style={styles.remainingTraitScore}>
+                      {item.score.toFixed(1)}/5
+                    </Text>
                   </Text>
                 </View>
               ))}
@@ -357,13 +360,13 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
+    paddingHorizontal: 20,
   },
   loadingText: {
     fontSize: 16,
@@ -523,12 +526,6 @@ const styles = StyleSheet.create({
     color: '#78350F',
     lineHeight: 22,
     textAlign: 'center',
-  },
-  patternsText: {
-    fontSize: 15,
-    color: '#78350F',
-    lineHeight: 22,
-    marginBottom: 16,
   },
   remainingTraitsSection: {
     marginTop: 20,

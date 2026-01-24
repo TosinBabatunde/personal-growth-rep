@@ -1,53 +1,69 @@
+import React from 'react';
 import { Tabs, Redirect } from 'expo-router';
+import { Platform, View, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { Home, MessageCircle, TrendingUp, User } from 'lucide-react-native';
-import { Platform, View, ActivityIndicator } from 'react-native';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { user, loading } = useAuth();
 
-  // STEP 4: wait for auth to initialize
+  // Wait for auth to initialize
   if (loading) {
     return (
-     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#FFFFFF',
+        }}
+      >
         <ActivityIndicator size="large" color="#FF6B6B" />
       </View>
     );
   }
 
-  // STEP 4: block tabs if logged out
+  // Block tabs if logged out
   if (!user) {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
+  // Comprehensive bottom-bar fix:
+  // - Always pad by safe-area inset
+  // - Add a small extra buffer (helps with mobile browser bottom chrome on web)
+  // - Keep a consistent base height across platforms
+  const BASE_HEIGHT = 64; // visual height of the bar (icons + labels)
+  const EXTRA_WEB_PADDING = Platform.OS === 'web' ? 12 : 0;
+  const bottomPadding = Math.max(12, insets.bottom) + EXTRA_WEB_PADDING;
+
   return (
-  <Tabs
-    screenOptions={{
-      headerShown: false,
-      tabBarActiveTintColor: '#FF6B6B',
-      tabBarInactiveTintColor: '#9CA3AF',
-      tabBarStyle: {
-        backgroundColor: '#FFFFFF',
-        borderTopWidth: 1,
-        borderTopColor: '#E5E7EB',
-        paddingTop: 8,
-        paddingBottom: Math.max(12, insets.bottom + (Platform.OS === 'ios' ? 8 : 0)),
-        height: (Platform.OS === 'ios' ? 84 : 70) + insets.bottom,
-      },
-      tabBarLabelStyle: {
-        fontSize: 11,
-        fontWeight: '600',
-        lineHeight: 12,
-        marginTop: 2,
-        paddingBottom: Platform.OS === 'ios' ? 0 : 2,
-      },
-      tabBarIconStyle: {
-        marginTop: 2,
-      },
-    }}
-     >
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: '#FF6B6B',
+        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: '#E5E7EB',
+          paddingTop: 8,
+          paddingBottom: bottomPadding,
+          height: BASE_HEIGHT + bottomPadding,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+          lineHeight: 12,
+          marginTop: 2,
+          paddingBottom: 2,
+        },
+        tabBarIconStyle: {
+          marginTop: 2,
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{

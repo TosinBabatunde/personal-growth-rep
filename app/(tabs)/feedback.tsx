@@ -13,9 +13,15 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Send, Users, CheckCircle2, Clock, Plus, Copy, Share2 } from 'lucide-react-native';
+import {
+  Users,
+  CheckCircle2,
+  Clock,
+  Share2,
+} from 'lucide-react-native';
 
 interface FeedbackCycle {
   id: string;
@@ -35,6 +41,11 @@ interface FeedbackRequest {
 export default function FeedbackScreen() {
   const { profile } = useAuth();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+
+  // ✅ Key: tab bar height + safe area + a little breathing room
+  const bottomPad = tabBarHeight + Math.max(16, insets.bottom);
+
   const [cycle, setCycle] = useState<FeedbackCycle | null>(null);
   const [requests, setRequests] = useState<FeedbackRequest[]>([]);
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -70,6 +81,8 @@ export default function FeedbackScreen() {
 
         if (requestsError) throw requestsError;
         setRequests(requestsData || []);
+      } else {
+        setRequests([]);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -100,22 +113,21 @@ export default function FeedbackScreen() {
 
   const getAppUrl = () => {
     if (Platform.OS === 'web') {
-      // Always use the current window location on web - this is the most reliable
       if (typeof window !== 'undefined' && window.location) {
         return window.location.origin;
       }
     }
-    // For mobile apps, use the configured URL
+
     const configuredUrl = process.env.EXPO_PUBLIC_APP_URL;
     if (configuredUrl && configuredUrl.trim() !== '') {
       return configuredUrl;
     }
-    // If no URL is configured, provide a helpful error
+
     Alert.alert(
       'Configuration Required',
       'Please set EXPO_PUBLIC_APP_URL in your .env file to your deployed web URL (e.g., https://yourapp.bolt.new or your custom domain)'
     );
-    return 'https://example.com'; // Temporary fallback
+    return 'https://example.com';
   };
 
   const handleSendRequest = async () => {
@@ -153,13 +165,18 @@ export default function FeedbackScreen() {
       };
 
       const normalizedInput = normalizeForComparison(normalizedPhone);
-      const matchingRequests = allRequests?.filter(
-        (req) => normalizeForComparison(req.rater_phone_number) === normalizedInput
-      ) || [];
+      const matchingRequests =
+        allRequests?.filter(
+          (req) => normalizeForComparison(req.rater_phone_number) === normalizedInput
+        ) || [];
 
       if (matchingRequests.length > 0) {
-        const existingNames = matchingRequests.map(req => `"${req.rater_phone_number}"`).join(', ');
-        setErrorMessage(`You already have a request for a contact with a similar name: ${existingNames}. To avoid confusion, please add more detail (e.g., "${phoneNumber.trim()} Smith" or "${phoneNumber.trim()} (work)").`);
+        const existingNames = matchingRequests
+          .map((req) => `"${req.rater_phone_number}"`)
+          .join(', ');
+        setErrorMessage(
+          `You already have a request for a contact with a similar name: ${existingNames}. To avoid confusion, please add more detail (e.g., "${phoneNumber.trim()} Smith" or "${phoneNumber.trim()} (work)").`
+        );
         setSending(false);
         return;
       }
@@ -171,9 +188,8 @@ export default function FeedbackScreen() {
       expiresAt.setDate(expiresAt.getDate() + 30);
 
       const cleanedName = finalContactName.replace(/\s+/g, ' ').trim();
-      const verificationHint = cleanedName.length >= 4
-        ? cleanedName.slice(-4).toLowerCase()
-        : cleanedName.toLowerCase();
+      const verificationHint =
+        cleanedName.length >= 4 ? cleanedName.slice(-4).toLowerCase() : cleanedName.toLowerCase();
 
       const { data, error } = await supabase
         .from('feedback_requests')
@@ -192,9 +208,7 @@ export default function FeedbackScreen() {
 
       const feedbackUrl = `${getAppUrl()}/feedback/submit?token=${token}`;
 
-      const verificationCode = cleanedName.length >= 4
-        ? cleanedName.slice(-4)
-        : cleanedName;
+      const verificationCode = cleanedName.length >= 4 ? cleanedName.slice(-4) : cleanedName;
 
       try {
         const shareResult = await Share.share({
@@ -234,10 +248,7 @@ export default function FeedbackScreen() {
       'Share Again?',
       `Are you sure you want to share this link again with ${contactName}?\n\nIf you already sent it to them, sending it multiple times may be confusing. Each person should only receive one link.`,
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Share Again',
           onPress: async () => {
@@ -250,7 +261,10 @@ export default function FeedbackScreen() {
 
             if (Platform.OS === 'web' && navigator.clipboard) {
               navigator.clipboard.writeText(feedbackUrl);
-              Alert.alert('Link Copied', `Feedback link copied to clipboard. Share it with your contact and remind them to enter this verification code: ${verCode}`);
+              Alert.alert(
+                'Link Copied',
+                `Feedback link copied to clipboard. Share it with your contact and remind them to enter this verification code: ${verCode}`
+              );
               return;
             }
 
@@ -270,7 +284,7 @@ export default function FeedbackScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { paddingBottom: bottomPad }]}>
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -278,7 +292,7 @@ export default function FeedbackScreen() {
 
   if (!cycle) {
     return (
-      <View style={styles.emptyContainer}>
+      <View style={[styles.emptyContainer, { paddingBottom: bottomPad }]}>
         <Users size={48} color="#9CA3AF" strokeWidth={2} />
         <Text style={styles.emptyTitle}>No Active Cycle</Text>
         <Text style={styles.emptyText}>
@@ -291,10 +305,9 @@ export default function FeedbackScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
+      contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.header}>
         <Text style={styles.title}>Request Feedback</Text>
@@ -328,6 +341,7 @@ export default function FeedbackScreen() {
           <Text style={styles.sendDescription}>
             Enter a contact name or identifier. Be specific to distinguish contacts (e.g., "David Smith" or "David (work)").
           </Text>
+
           <TextInput
             style={styles.input}
             placeholder="e.g., Sarah Johnson or Mike (college)"
@@ -339,11 +353,13 @@ export default function FeedbackScreen() {
             }}
             keyboardType="default"
           />
+
           {errorMessage ? (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
           ) : null}
+
           <TouchableOpacity
             style={[styles.sendButton, sending && styles.sendButtonDisabled]}
             onPress={handleSendRequest}
@@ -354,6 +370,7 @@ export default function FeedbackScreen() {
               {sending ? 'Creating Link...' : 'Share Feedback Request'}
             </Text>
           </TouchableOpacity>
+
           <Text style={styles.note}>
             Opens your phone's share menu to send via SMS, WhatsApp, email, etc. Each link is single-use and expires in 30 days.
           </Text>
@@ -367,13 +384,12 @@ export default function FeedbackScreen() {
             <View key={request.id} style={styles.requestCard}>
               <View style={styles.requestHeader}>
                 <View style={styles.requestInfo}>
-                  <Text style={styles.requestPhone}>
-                    {request.rater_phone_number}
-                  </Text>
+                  <Text style={styles.requestPhone}>{request.rater_phone_number}</Text>
                   <Text style={styles.requestDate}>
                     Sent {new Date(request.sent_at).toLocaleDateString()}
                   </Text>
                 </View>
+
                 <View
                   style={[
                     styles.statusBadge,
@@ -395,6 +411,7 @@ export default function FeedbackScreen() {
                   </Text>
                 </View>
               </View>
+
               {request.status !== 'completed' && (
                 <TouchableOpacity
                   style={styles.reshareButton}
@@ -430,13 +447,13 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
+    paddingHorizontal: 20,
   },
   loadingText: {
     fontSize: 16,
