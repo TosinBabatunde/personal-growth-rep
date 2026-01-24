@@ -20,17 +20,24 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [error, setError] = useState('');
   const router = useRouter();
   const { signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
 
   const handleSubmit = async () => {
+    setError('');
+
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter your email and password');
+      const errorMsg = 'Please enter your email and password';
+      setError(errorMsg);
+      Alert.alert('Error', errorMsg);
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      const errorMsg = 'Password must be at least 6 characters';
+      setError(errorMsg);
+      Alert.alert('Error', errorMsg);
       return;
     }
 
@@ -43,15 +50,21 @@ export default function SignInScreen() {
         await signInWithEmail(email, password);
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || `Failed to ${isSignUp ? 'sign up' : 'sign in'}`);
+      const errorMsg = error.message || `Failed to ${isSignUp ? 'sign up' : 'sign in'}`;
+      setError(errorMsg);
+      Alert.alert('Authentication Error', errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleForgotPassword = async () => {
+    setError('');
+
     if (!email.trim()) {
-      Alert.alert('Email Required', 'Please enter your email address to reset your password');
+      const errorMsg = 'Please enter your email address first';
+      setError(errorMsg);
+      Alert.alert('Email Required', errorMsg);
       return;
     }
 
@@ -59,12 +72,14 @@ export default function SignInScreen() {
     try {
       await resetPassword(email);
       Alert.alert(
-        'Password Reset Email Sent',
-        'Check your email for a link to reset your password. If it doesn\'t appear within a few minutes, check your spam folder.',
+        'Check Your Email',
+        `We've sent a password reset link to ${email}.\n\nIf you have an account with us, you'll receive an email within a few minutes. Please check your spam folder if you don't see it.\n\nClick the link in the email to reset your password.`,
         [{ text: 'OK' }]
       );
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to send password reset email');
+      const errorMsg = error.message || 'Failed to send password reset email';
+      setError(errorMsg);
+      Alert.alert('Error', errorMsg);
     } finally {
       setResetLoading(false);
     }
@@ -87,13 +102,22 @@ export default function SignInScreen() {
         </View>
 
         <View style={styles.form}>
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
           <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
             placeholder="you@example.com"
             placeholderTextColor="#9CA3AF"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(text) => {
+              setEmail(text);
+              setError('');
+            }}
             keyboardType="email-address"
             autoComplete="email"
             textContentType="emailAddress"
@@ -107,7 +131,10 @@ export default function SignInScreen() {
               placeholder="Enter your password"
               placeholderTextColor="#9CA3AF"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                setError('');
+              }}
               secureTextEntry={!showPassword}
               autoComplete={isSignUp ? 'password-new' : 'password'}
               textContentType="password"
@@ -200,6 +227,20 @@ const styles = StyleSheet.create({
   },
   form: {
     width: '100%',
+  },
+  errorContainer: {
+    backgroundColor: '#FEE2E2',
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC2626',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 24,
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
   },
   label: {
     fontSize: 14,

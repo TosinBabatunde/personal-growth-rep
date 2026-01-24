@@ -74,17 +74,31 @@ This app is configured for easy deployment to Netlify.
 
 1. **Update Environment Variables:**
    - Update `EXPO_PUBLIC_APP_URL` in Netlify to match your deployed URL
-   - Redeploy if needed
+   - This is CRITICAL for password reset emails to work
+   - Go to: Site configuration → Environment variables
+   - Change `EXPO_PUBLIC_APP_URL` from the Bolt URL to your Netlify URL
+   - Example: `https://your-app-name.netlify.app`
+   - Redeploy after updating
 
-2. **Test Your App:**
+2. **Configure Supabase URL Redirects:**
+   - Go to your [Supabase Dashboard](https://app.supabase.com)
+   - Navigate to: Authentication → URL Configuration
+   - Add your Netlify URL to "Redirect URLs":
+     - `https://your-app-name.netlify.app/**`
+   - This allows password reset and other auth flows to redirect properly
+
+3. **Test Your App:**
    - Visit your Netlify URL
+   - Test sign up and sign in
+   - Test password reset flow (it should now work!)
    - Try creating a feedback request
    - Test the feedback submission flow on mobile
 
-3. **Custom Domain (Optional):**
+4. **Custom Domain (Optional):**
    - In Netlify dashboard: Site configuration → Domain management
    - Add your custom domain
-   - Update `EXPO_PUBLIC_APP_URL` to your custom domain
+   - Update `EXPO_PUBLIC_APP_URL` in environment variables to your custom domain
+   - Update Supabase redirect URLs to include your custom domain
    - Update DNS records as instructed by Netlify
 
 ### Continuous Deployment
@@ -100,6 +114,15 @@ Once connected to your Git repository, Netlify will automatically deploy when yo
 - **Build failures:** Check the Netlify build logs for specific errors. Common issues:
   - Missing dependencies: Run `npm install` locally first
   - Node version: Netlify uses Node 18 by default, which should work fine
+
+- **Password reset links not working ("site can't be reached"):**
+  This happens when `EXPO_PUBLIC_APP_URL` is not set to your deployed URL. To fix:
+  1. Deploy your app to Netlify first
+  2. Copy your Netlify URL (e.g., `https://your-app.netlify.app`)
+  3. Update `EXPO_PUBLIC_APP_URL` in Netlify environment variables
+  4. Add the URL to Supabase redirect URLs (see "Configure Supabase URL Redirects" above)
+  5. Redeploy your site
+  6. Test password reset again - it should now work!
 
 ### Environment Variables Reference
 

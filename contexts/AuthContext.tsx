@@ -130,9 +130,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.EXPO_PUBLIC_APP_URL}/(auth)/sign-in`,
-    });
+    const appUrl = process.env.EXPO_PUBLIC_APP_URL;
+    const options: any = {};
+
+    if (appUrl && !appUrl.includes('bolt.new')) {
+      options.redirectTo = `${appUrl}/(auth)/sign-in`;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, options);
 
     if (error) throw error;
   };
