@@ -7,6 +7,7 @@ import {
   StyleSheet,
   RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
@@ -54,6 +55,7 @@ interface TraitScore {
 
 export default function GrowthScreen() {
   const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
   const [summaries, setSummaries] = useState<FeedbackSummary[]>([]);
   const [cycle, setCycle] = useState<FeedbackCycle | null>(null);
   const [recommendations, setRecommendations] = useState<GrowthRecommendation[]>([]);
@@ -190,7 +192,7 @@ export default function GrowthScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }

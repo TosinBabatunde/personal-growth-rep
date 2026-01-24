@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { Heart, Star, Send } from 'lucide-react-native';
 
@@ -38,6 +39,7 @@ interface Rating {
 export default function SubmitFeedbackScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [request, setRequest] = useState<FeedbackRequest | null>(null);
@@ -243,7 +245,10 @@ export default function SubmitFeedbackScreen() {
 
   if (!verified && request?.verification_hint) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
+      >
         <View style={styles.header}>
           <View style={styles.iconContainer}>
             <Heart size={40} color="#FF6B6B" strokeWidth={2} />
@@ -282,7 +287,10 @@ export default function SubmitFeedbackScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
+    >
       <View style={styles.header}>
         <View style={styles.iconContainer}>
           <Heart size={40} color="#FF6B6B" strokeWidth={2} />

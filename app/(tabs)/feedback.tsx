@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Send, Users, CheckCircle2, Clock, Plus, Copy, Share2 } from 'lucide-react-native';
@@ -33,6 +34,7 @@ interface FeedbackRequest {
 
 export default function FeedbackScreen() {
   const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
   const [cycle, setCycle] = useState<FeedbackCycle | null>(null);
   const [requests, setRequests] = useState<FeedbackRequest[]>([]);
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -289,7 +291,7 @@ export default function FeedbackScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }

@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { Eye, EyeOff, CheckCircle } from 'lucide-react-native';
 
@@ -22,6 +23,7 @@ export default function ResetPasswordScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     // Check if user arrived here with a valid reset token
@@ -98,7 +100,7 @@ export default function ResetPasswordScreen() {
       style={styles.container}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>

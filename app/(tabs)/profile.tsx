@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
@@ -33,6 +34,7 @@ interface CycleHistory {
 export default function ProfileScreen() {
   const { profile, signOut } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [cycles, setCycles] = useState<CycleHistory[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -116,7 +118,10 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
+    >
       <View style={styles.header}>
         <View style={styles.profileIcon}>
           <User size={32} color="#FF6B6B" strokeWidth={2} />

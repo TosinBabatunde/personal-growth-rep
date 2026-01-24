@@ -8,8 +8,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { Heart, Eye, EyeOff } from 'lucide-react-native';
 
@@ -22,6 +24,7 @@ export default function SignInScreen() {
   const [resetLoading, setResetLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
 
   const handleSubmit = async () => {
@@ -90,7 +93,10 @@ export default function SignInScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <View style={styles.iconContainer}>
             <Heart size={48} color="#10B981" strokeWidth={2} />
@@ -183,7 +189,7 @@ export default function SignInScreen() {
             Your privacy is important to us. We'll never share your information.
           </Text>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -194,7 +200,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
   },

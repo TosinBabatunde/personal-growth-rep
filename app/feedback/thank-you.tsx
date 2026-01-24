@@ -6,16 +6,18 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Heart, CheckCircle } from 'lucide-react-native';
 
 export default function ThankYouScreen() {
   const { senderName } = useLocalSearchParams<{ senderName: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const displayName = senderName || 'them';
 
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingBottom: Math.max(32, insets.bottom + 20) }]}>
         <View style={styles.iconContainer}>
           <CheckCircle size={64} color="#10B981" strokeWidth={2} />
         </View>
