@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/types/database';
+import { Platform } from 'react-native';
 
 type UserProfile = Database['public']['Tables']['users']['Row'];
 
@@ -140,18 +141,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const resetPassword = async (email: string) => {
-    const appUrl = process.env.EXPO_PUBLIC_APP_URL;
-    const options: any = {};
+ const resetPassword = async (email: string) => {
+  const appUrl =
+    process.env.EXPO_PUBLIC_APP_URL ||
+    (Platform.OS === 'web' && typeof window !== 'undefined'
+      ? window.location.origin
+      : undefined);
 
-    if (appUrl && !appUrl.includes('bolt.new')) {
-      options.redirectTo = `${appUrl}/(auth)/reset-password`;
-    }
+  const options: { redirectTo?: string } = {};
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, options);
+  if (appUrl) {
+    const base = appUrl.replace(/\/$/, '');
+    options.redirectTo = `${appUrl}/reset-password`;
+  }
 
-    if (error) throw error;
-  };
+  const { error } = await supabase.auth.resetPasswordForEmail(email, options);
+  if (error) throw error;
+};
 
   return (
     <AuthContext.Provider
