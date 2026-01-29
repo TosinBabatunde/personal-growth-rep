@@ -82,6 +82,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadCycle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
 
   const onRefresh = () => {
@@ -169,7 +170,7 @@ export default function HomeScreen() {
       }
     >
       <View style={styles.header}>
-        {/* ✅ Keep icon centered no matter what the name does */}
+        {/* ✅ Text wraps independently; icon sits in fixed wrapper */}
         <View style={styles.greetingRow}>
           <View style={styles.greetingTextWrap}>
             <Text style={styles.name} numberOfLines={2}>
@@ -332,17 +333,16 @@ const styles = StyleSheet.create({
     paddingTop: 40,
   },
 
-  // ✅ Icon stays centered because it sits in a fixed-size wrapper
-  // and the text area is what grows/wraps.
+  // ✅ CHANGES: bring icon closer to "Hello, FirstName"
   greetingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    gap: 12,
+    gap: 8, // was 12 (tighter)
   },
   greetingTextWrap: {
     flex: 1,
-    paddingRight: 8,
+    paddingRight: 0, // was 8 (remove forced spacing)
   },
   name: {
     fontSize: 32,
@@ -351,9 +351,9 @@ const styles = StyleSheet.create({
     lineHeight: 38,
   },
   iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 52, // was 60 (slightly tighter)
+    height: 52, // was 60
+    borderRadius: 26, // was 30
     backgroundColor: '#FEF2F2',
     alignItems: 'center',
     justifyContent: 'center',
