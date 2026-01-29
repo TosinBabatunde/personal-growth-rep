@@ -342,6 +342,7 @@ const styles = StyleSheet.create({
   },
   greetingTextWrap: {
     flex: 1,
+    flexShrink: 1,
     paddingRight: 0, // was 8 (remove forced spacing)
   },
   name: {
