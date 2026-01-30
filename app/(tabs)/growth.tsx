@@ -38,6 +38,7 @@ interface FeedbackCycle {
 
 interface GrowthRecommendation {
   id: string;
+  summary_id?: string | null;
   recommendation_type: string;
   title: string;
   description: string;
@@ -92,16 +93,33 @@ export default function GrowthScreen() {
       if (summariesError) throw summariesError;
       setSummaries(summariesData || []);
 
-      const { data: recommendationsData, error: recommendationsError } =
-        await supabase
-          .from('growth_recommendations')
-          .select('*')
-          .eq('user_id', profile.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
+      const latestSummary = (summariesData && summariesData.length > 0) ? summariesData[0] : null;
 
-      if (recommendationsError) throw recommendationsError;
-      setRecommendations(recommendationsData || []);
+      if (!latestSummary?.id) {
+        setRecommendations([]);
+      } else {
+        const { data: recommendationsData, error: recommendationsError } =
+          await supabase
+            .from('growth_recommendations')
+            .select('*')
+            .eq('summary_id', latestSummary.id)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        if (recommendationsError) throw recommendationsError;
+        setRecommendations(recommendationsData || []);
+      }
+
+      // const { data: recommendationsData, error: recommendationsError } =
+      //   await supabase
+      //     .from('growth_recommendations')
+      //     .select('*')
+      //     .eq('user_id', profile.id)
+      //     .order('created_at', { ascending: false })
+      //     .limit(10);
+
+      // if (recommendationsError) throw recommendationsError;
+      // setRecommendations(recommendationsData || []);
 
       if (summariesData && summariesData.length > 0) {
         const latestSummary = summariesData[0];
