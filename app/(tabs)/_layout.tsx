@@ -1,13 +1,31 @@
-import React from 'react';
-import { Tabs, Redirect } from 'expo-router';
+import React, { useEffect, useRef } from 'react';
+import { Tabs, Redirect, useRouter } from 'expo-router';
 import { Platform, View, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { Home, MessageCircle, TrendingUp, User } from 'lucide-react-native';
 
 export default function TabLayout() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
+
+  // Prevent double redirect loops
+  const redirectedRef = useRef(false);
+
+  // ✅ Redirect new/returning users who haven't seen About yet
+  useEffect(() => {
+    if (loading) return;
+    if (!user?.id) return;
+    if (!profile?.id) return;
+
+    const needsAbout = !profile.about_seen_at;
+
+    if (needsAbout && !redirectedRef.current) {
+      redirectedRef.current = true;
+      router.replace('/(tabs)/about');
+    }
+  }, [loading, user?.id, profile?.id, profile?.about_seen_at, router]);
 
   // Wait for auth to initialize
   if (loading) {
@@ -31,10 +49,7 @@ export default function TabLayout() {
   }
 
   // Comprehensive bottom-bar fix:
-  // - Always pad by safe-area inset
-  // - Add a small extra buffer (helps with mobile browser bottom chrome on web)
-  // - Keep a consistent base height across platforms
-  const BASE_HEIGHT = 64; // visual height of the bar (icons + labels)
+  const BASE_HEIGHT = 64;
   const EXTRA_WEB_PADDING = Platform.OS === 'web' ? 12 : 0;
   const bottomPadding = Math.max(12, insets.bottom) + EXTRA_WEB_PADDING;
 
@@ -71,6 +86,7 @@ export default function TabLayout() {
           tabBarIcon: ({ size, color }) => <Home size={size} color={color} />,
         }}
       />
+
       <Tabs.Screen
         name="feedback"
         options={{
@@ -80,6 +96,7 @@ export default function TabLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="growth"
         options={{
@@ -89,6 +106,16 @@ export default function TabLayout() {
           ),
         }}
       />
+      
+      <Tabs.Screen
+        name="about"
+        options={{
+          title: 'About',
+          // If you want an icon later, add one. For now it will show label only.
+          // tabBarIcon: ({ size, color }) => <Info size={size} color={color} />,
+        }}
+      />
+
       <Tabs.Screen
         name="profile"
         options={{
