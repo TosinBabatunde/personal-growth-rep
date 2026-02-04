@@ -10,7 +10,6 @@ import {
   Info,
 } from 'lucide-react-native';
 
-// ✅ Move traits outside component
 const TRAITS = [
   'Hygiene',
   'Approachability',
@@ -118,7 +117,7 @@ export default function AboutScreen() {
         </View>
       </View>
 
-      {/* Card 4: What you're being rated on */}
+      {/* Card 4: How others experience you */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={[styles.iconBadge, styles.iconBadgeBlue]}>
@@ -128,12 +127,12 @@ export default function AboutScreen() {
         </View>
 
         <Text style={styles.cardText}>
-          People you invite rate you on a set of everyday traits. This helps you notice
+          People you invite provide feedback on these everyday traits. This helps you notice
           patterns in how you show up, not define who you are.
         </Text>
 
         <Text style={styles.ratingNote}>
-          Traits are rated on a scale from 1 to 5.
+          Feedback is shared on a scale from 1 to 5.
         </Text>
 
         <View style={styles.traitsWrap}>
@@ -146,7 +145,7 @@ export default function AboutScreen() {
 
         <View style={styles.aggregationNote}>
           <Text style={styles.aggregationNoteText}>
-            Note: All ratings are aggregated. You’ll see overall patterns and averages, not individual responses.
+            Note: All feedback is anonymous and aggregated. You’ll see overall patterns, not individual responses.
           </Text>
         </View>
       </View>
