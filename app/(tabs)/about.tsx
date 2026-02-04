@@ -1,193 +1,178 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useRouter } from 'expo-router';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
-import { Sparkles, Heart, Compass, ShieldCheck } from 'lucide-react-native';
+import {
+  Sparkles,
+  Heart,
+  Compass,
+  ShieldCheck,
+  Info,
+} from 'lucide-react-native';
 
 export default function AboutScreen() {
-  const router = useRouter();
-  const { profile, refreshProfile } = useAuth();
-
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
+  const bottomPad = tabBarHeight + Math.max(16, insets.bottom);
 
-  // Keep scroll content above the button + tab bar
-  const bottomPad = tabBarHeight + Math.max(16, insets.bottom) + 88;
-
-  const [saving, setSaving] = useState(false);
-
-  const handleContinue = async () => {
-    if (!profile?.id) return;
-
-    try {
-      setSaving(true);
-
-      const { error } = await supabase
-        .from('users')
-        .update({ about_seen_at: new Date().toISOString() })
-        .eq('id', profile.id);
-
-      if (error) throw error;
-
-      await refreshProfile();
-      // router.replace('/(tabs)/index');
-      router.replace('/');
-    } catch (e: any) {
-      Alert.alert("Couldn't save yet", e?.message ?? 'Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const TRAITS = [
+    'Hygiene',
+    'Approachability',
+    'Trustworthiness',
+    'Friendliness',
+    'Kindness',
+    'Open-mindedness',
+    'Selflessness',
+    'Thoughtfulness',
+    'Gentleness',
+    'Patience',
+    'Helpfulness',
+    'Listening ability',
+  ];
 
   return (
-    <View style={styles.screen}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>About Growth</Text>
-          <Text style={styles.subtitle}>
-            A gentle space for self-awareness, reflection, and becoming.
-          </Text>
-        </View>
-
-        {/* Card 1: Welcome */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.iconBadge, styles.iconBadgeWarm]}>
-              <Sparkles size={18} color="#92400E" strokeWidth={2} />
-            </View>
-            <Text style={styles.cardTitle}>Welcome to Growth</Text>
-          </View>
-
-          <Text style={styles.cardText}>
-            Taking this step is a brave and meaningful choice.{'\n\n'}
-            Growth is a space for building self-awareness with kindness. It helps you
-            recognize the strengths you already have, understand how others experience
-            you, and grow in ways that feel empowering and aligned with who you are.
-          </Text>
-        </View>
-
-        {/* Card 2: Reminder */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.iconBadge, styles.iconBadgeSoft]}>
-              <ShieldCheck size={18} color="#065F46" strokeWidth={2} />
-            </View>
-            <Text style={styles.cardTitle}>A gentle reminder</Text>
-          </View>
-
-          <Text style={styles.cardText}>
-            The feedback you receive here is not a judgment and not a measure of your worth.{'\n\n'}
-            It simply reflects how a small group of people sees you, shaped by their own
-            perspectives and experiences.{'\n\n'}
-            <Text style={styles.emphasis}>
-              You are already valuable. You are already worthy. You are already enough.
-            </Text>
-          </Text>
-        </View>
-
-        {/* Card 3: How it works */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.iconBadge, styles.iconBadgeBlue]}>
-              <Compass size={18} color="#1D4ED8" strokeWidth={2} />
-            </View>
-            <Text style={styles.cardTitle}>How Growth works</Text>
-          </View>
-
-          <View style={styles.step}>
-            <Text style={styles.stepTitle}>Invite people you trust</Text>
-            <Text style={styles.stepText}>
-              Choose people who know you well and care about your growth.
-            </Text>
-          </View>
-
-          <View style={styles.step}>
-            <Text style={styles.stepTitle}>Receive thoughtful insights</Text>
-            <Text style={styles.stepText}>
-              Once responses are received, Growth highlights patterns, strengths, and opportunities.
-            </Text>
-          </View>
-
-          <View style={styles.step}>
-            <Text style={styles.stepTitle}>Reflect, don’t rush</Text>
-            <Text style={styles.stepText}>
-              There’s no urgency here. Reflection is part of the process.
-            </Text>
-          </View>
-
-          <View style={styles.step}>
-            <Text style={styles.stepTitle}>Take small, meaningful steps</Text>
-            <Text style={styles.stepText}>
-              When you’re ready, gentle recommendations support you at your own pace.
-            </Text>
-          </View>
-        </View>
-
-        {/* Card 4: Closing */}
-        <View style={[styles.card, styles.cardWarm]}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.iconBadge, styles.iconBadgePink]}>
-              <Heart size={18} color="#9F1239" strokeWidth={2} />
-            </View>
-            <Text style={styles.cardTitle}>You’re not “behind”</Text>
-          </View>
-
-          <Text style={styles.cardText}>
-            This is not about fixing yourself or becoming someone else.{'\n\n'}
-            It’s about understanding yourself more deeply and choosing how you want to grow.{'\n\n'}
-            Growth is here to support you, every step of the way.
-          </Text>
-        </View>
-
-        {/* Footer note */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Tip: Take what resonates, leave what doesn’t, and go at your own pace.
-          </Text>
-        </View>
-      </ScrollView>
-
-      {/* Sticky Continue button */}
-      <View
-        style={[
-          styles.stickyBar,
-          { paddingBottom: Math.max(12, insets.bottom) },
-        ]}
-      >
-        <TouchableOpacity
-          style={[styles.primaryButton, saving && styles.primaryButtonDisabled]}
-          onPress={handleContinue}
-          disabled={saving}
-          activeOpacity={0.9}
-        >
-          {saving ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.primaryButtonText}>Continue</Text>
-          )}
-        </TouchableOpacity>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>About Growth</Text>
+        <Text style={styles.subtitle}>
+          A gentle space for self-awareness, reflection, and becoming.
+        </Text>
       </View>
-    </View>
+
+      {/* Card 1: Welcome */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconBadge, styles.iconBadgeWarm]}>
+            <Sparkles size={18} color="#92400E" strokeWidth={2} />
+          </View>
+          <Text style={styles.cardTitle}>Welcome to Growth</Text>
+        </View>
+
+        <Text style={styles.cardText}>
+          Taking this step is a brave and meaningful choice.{'\n\n'}
+          Growth is a space for building self-awareness with kindness. It helps you
+          recognize the strengths you already have, understand how others experience
+          you, and grow in ways that feel empowering and aligned with who you are.
+        </Text>
+      </View>
+
+      {/* Card 2: Reminder */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconBadge, styles.iconBadgeSoft]}>
+            <ShieldCheck size={18} color="#065F46" strokeWidth={2} />
+          </View>
+          <Text style={styles.cardTitle}>A gentle reminder</Text>
+        </View>
+
+        <Text style={styles.cardText}>
+          The feedback you receive here is not a judgment and not a measure of your worth.{'\n\n'}
+          It simply reflects how a small group of people experiences you, shaped by their
+          own perspectives and context.{'\n\n'}
+          <Text style={styles.emphasis}>
+            You are already valuable. You are already worthy. You are already enough.
+          </Text>
+        </Text>
+      </View>
+
+      {/* Card 3: How it works */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconBadge, styles.iconBadgeBlue]}>
+            <Compass size={18} color="#1D4ED8" strokeWidth={2} />
+          </View>
+          <Text style={styles.cardTitle}>How Growth works</Text>
+        </View>
+
+        <View style={styles.step}>
+          <Text style={styles.stepTitle}>Invite people you trust</Text>
+          <Text style={styles.stepText}>
+            Choose people who know you well and care about your growth.
+          </Text>
+        </View>
+
+        <View style={styles.step}>
+          <Text style={styles.stepTitle}>Receive thoughtful insights</Text>
+          <Text style={styles.stepText}>
+            Once responses are received, Growth highlights patterns, strengths, and opportunities.
+          </Text>
+        </View>
+
+        <View style={styles.step}>
+          <Text style={styles.stepTitle}>Reflect, don’t rush</Text>
+          <Text style={styles.stepText}>
+            There’s no urgency here. Reflection is part of the process.
+          </Text>
+        </View>
+
+        <View style={styles.step}>
+          <Text style={styles.stepTitle}>Take small, meaningful steps</Text>
+          <Text style={styles.stepText}>
+            When you’re ready, gentle recommendations support you at your own pace.
+          </Text>
+        </View>
+      </View>
+
+      {/* Card 4: What you're being rated on */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconBadge, styles.iconBadgeBlue]}>
+            <Info size={18} color="#1D4ED8" strokeWidth={2} />
+          </View>
+          <Text style={styles.cardTitle}>What you’re being rated on</Text>
+        </View>
+
+        <Text style={styles.cardText}>
+          People you invite rate you on a set of everyday traits. This helps you notice
+          patterns in how you show up, not define who you are.
+        </Text>
+
+        <View style={styles.traitsWrap}>
+          {TRAITS.map((t) => (
+            <View key={t} style={styles.traitChip}>
+              <Text style={styles.traitChipText}>{t}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.aggregationNote}>
+          <Text style={styles.aggregationNoteText}>
+            Note: All ratings are aggregated. You’ll see overall patterns and averages, not individual responses.
+          </Text>
+        </View>
+      </View>
+
+      {/* Card 5: Closing */}
+      <View style={[styles.card, styles.cardWarm]}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconBadge, styles.iconBadgePink]}>
+            <Heart size={18} color="#9F1239" strokeWidth={2} />
+          </View>
+          <Text style={styles.cardTitle}>You’re not “behind”</Text>
+        </View>
+
+        <Text style={styles.cardText}>
+          This is not about fixing yourself or becoming someone else.{'\n\n'}
+          It’s about understanding yourself more deeply and choosing how you want to grow.{'\n\n'}
+          Growth is here to support you, every step of the way.
+        </Text>
+      </View>
+
+      {/* Footer note */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          Tip: Take what resonates, leave what doesn’t, and go at your own pace.
+        </Text>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F9FAFB' },
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   content: { padding: 20 },
 
@@ -231,29 +216,39 @@ const styles = StyleSheet.create({
   stepTitle: { fontSize: 14, fontWeight: '800', color: '#111827', marginBottom: 3 },
   stepText: { fontSize: 14, color: '#6B7280', lineHeight: 20 },
 
+  traitsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  traitChip: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  traitChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#374151',
+  },
+
+  aggregationNote: {
+    marginTop: 14,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 12,
+    padding: 12,
+  },
+  aggregationNoteText: {
+    fontSize: 13,
+    color: '#1F2937',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+
   footer: { marginTop: 6, paddingHorizontal: 8, paddingBottom: 8 },
   footerText: { fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 18 },
-
-  stickyBar: {
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-  },
-  primaryButton: {
-    backgroundColor: '#111827',
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonDisabled: {
-    opacity: 0.7,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-  },
 });
