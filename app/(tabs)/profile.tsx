@@ -140,7 +140,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About Growth</Text>
+        <Text style={styles.sectionTitle}>A gentle reminder</Text>
         <View style={styles.infoCard}>
           <Heart size={20} color="#FF6B6B" strokeWidth={2} />
           <Text style={styles.infoText}>
