@@ -3,7 +3,7 @@ import { Tabs, Redirect, useRouter } from 'expo-router';
 import { Platform, View, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
-import { Home, MessageCircle, TrendingUp, User } from 'lucide-react-native';
+import { Home, MessageCircle, TrendingUp, User, Info } from 'lucide-react-native';
 
 export default function TabLayout() {
   const router = useRouter();
@@ -23,7 +23,7 @@ export default function TabLayout() {
 
     if (needsAbout && !redirectedRef.current) {
       redirectedRef.current = true;
-      router.replace('/(tabs)/about');
+      router.replace('/about');
     }
   }, [loading, user?.id, profile?.id, profile?.about_seen_at, router]);
 
@@ -111,8 +111,9 @@ export default function TabLayout() {
         name="about"
         options={{
           title: 'About',
-          // If you want an icon later, add one. For now it will show label only.
-          // tabBarIcon: ({ size, color }) => <Info size={size} color={color} />,
+          tabBarIcon: ({ size, color }) => (
+            <Info size={size} color={color} />
+          ),
         }}
       />
 
