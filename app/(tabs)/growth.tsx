@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -62,13 +62,22 @@ export default function GrowthScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // This is the key: tab bar height + a little breathing room + safe-area.
-  const bottomPad = tabBarHeight + Math.max(16, insets.bottom);
+  const mountedRef = useRef(true);
 
-  const loadData = async () => {
+  // Tab bar height + safe area.
+  const bottomPad = useMemo(
+    () => tabBarHeight + Math.max(16, insets.bottom),
+    [tabBarHeight, insets.bottom]
+  );
+
+  const latestSummary = useMemo(() => (summaries.length > 0 ? summaries[0] : null), [summaries]);
+
+  const loadData = useCallback(async () => {
     if (!profile?.id) {
-      setLoading(false);
-      setRefreshing(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
       return;
     }
 
@@ -82,7 +91,7 @@ export default function GrowthScreen() {
         .maybeSingle();
 
       if (cycleError) throw cycleError;
-      setCycle(cycleData);
+      if (mountedRef.current) setCycle(cycleData);
 
       const { data: summariesData, error: summariesError } = await supabase
         .from('feedback_summaries')
@@ -91,100 +100,109 @@ export default function GrowthScreen() {
         .order('generated_at', { ascending: false });
 
       if (summariesError) throw summariesError;
-      setSummaries(summariesData || []);
+      if (mountedRef.current) setSummaries(summariesData || []);
 
-      const latestSummary = (summariesData && summariesData.length > 0) ? summariesData[0] : null;
+      const latest = summariesData && summariesData.length > 0 ? summariesData[0] : null;
 
-      if (!latestSummary?.id) {
-        setRecommendations([]);
+      // Load recs tied to latest summary, if it exists
+      if (!latest?.id) {
+        if (mountedRef.current) setRecommendations([]);
       } else {
-        const { data: recommendationsData, error: recommendationsError } =
-          await supabase
-            .from('growth_recommendations')
-            .select('*')
-            .eq('summary_id', latestSummary.id)
-            .order('created_at', { ascending: false })
-            .limit(10);
+        const { data: recommendationsData, error: recommendationsError } = await supabase
+          .from('growth_recommendations')
+          .select('*')
+          .eq('summary_id', latest.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
 
         if (recommendationsError) throw recommendationsError;
-        setRecommendations(recommendationsData || []);
+        if (mountedRef.current) setRecommendations(recommendationsData || []);
       }
 
-      // const { data: recommendationsData, error: recommendationsError } =
-      //   await supabase
-      //     .from('growth_recommendations')
-      //     .select('*')
-      //     .eq('user_id', profile.id)
-      //     .order('created_at', { ascending: false })
-      //     .limit(10);
-
-      // if (recommendationsError) throw recommendationsError;
-      // setRecommendations(recommendationsData || []);
-
-      if (summariesData && summariesData.length > 0) {
-        const latestSummary = summariesData[0];
-
-        const allTraitScores = Array.isArray((latestSummary as any).all_trait_scores)
-          ? (latestSummary as any).all_trait_scores
+      // Remaining traits
+      if (latest) {
+        const allTraitScores = Array.isArray((latest as any).all_trait_scores)
+          ? (latest as any).all_trait_scores
           : [];
 
         const strengthTraits = new Set(
-          Array.isArray(latestSummary.top_strengths)
-            ? latestSummary.top_strengths.map((s: any) => s.trait)
-            : []
+          Array.isArray(latest.top_strengths) ? latest.top_strengths.map((s: any) => s.trait) : []
         );
         const growthTraits = new Set(
-          Array.isArray(latestSummary.growth_opportunities)
-            ? latestSummary.growth_opportunities.map((g: any) => g.trait)
+          Array.isArray(latest.growth_opportunities)
+            ? latest.growth_opportunities.map((g: any) => g.trait)
             : []
         );
 
         const remaining: TraitScore[] = allTraitScores
           .filter(
             (scoreData: any) =>
-              !strengthTraits.has(scoreData.trait) &&
-              !growthTraits.has(scoreData.trait)
+              !strengthTraits.has(scoreData.trait) && !growthTraits.has(scoreData.trait)
           )
           .map((scoreData: any) => ({
             trait: scoreData.trait,
             score: scoreData.score || 0,
           }));
 
-        setRemainingTraits(remaining);
+        if (mountedRef.current) setRemainingTraits(remaining);
       } else {
-        setRemainingTraits([]);
+        if (mountedRef.current) setRemainingTraits([]);
       }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  };
-
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
 
-  const onRefresh = () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    loadData();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [loadData]);
+
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadData();
-  };
+  }, [loadData]);
 
-  const toggleRecommendation = async (id: string, currentStatus: boolean) => {
+  // Recommendations: optimistic toggle + rollback on error, no full reload
+  const toggleRecommendation = useCallback(async (id: string, currentStatus: boolean) => {
+    const nextValue = !currentStatus;
+
+    // Optimistic update
+    setRecommendations((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, is_completed: nextValue } : r))
+    );
+
     try {
       const { error } = await supabase
         .from('growth_recommendations')
-        .update({ is_completed: !currentStatus })
+        .update({ is_completed: nextValue })
         .eq('id', id);
 
       if (error) throw error;
-      loadData();
     } catch (error) {
       console.error('Error updating recommendation:', error);
+
+      // Rollback
+      setRecommendations((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, is_completed: currentStatus } : r))
+      );
     }
-  };
+  }, []);
+
+  const sortedRecommendations = useMemo(() => {
+    // Active first, completed last, while keeping relative order stable
+    const active = recommendations.filter((r) => !r.is_completed);
+    const done = recommendations.filter((r) => r.is_completed);
+    return [...active, ...done];
+  }, [recommendations]);
 
   if (loading) {
     return (
@@ -194,34 +212,30 @@ export default function GrowthScreen() {
     );
   }
 
-  if (summaries.length === 0) {
+  if (!latestSummary) {
     return (
       <View style={[styles.emptyContainer, { paddingBottom: bottomPad }]}>
         <TrendingUp size={48} color="#9CA3AF" strokeWidth={2} />
         <Text style={styles.emptyTitle}>No Insights Yet</Text>
         <Text style={styles.emptyText}>
-          You'll receive your first feedback summary after 10 people have
-          responded. Keep sending requests!
+          You'll receive your first feedback summary after 10 people have responded. Keep sending
+          requests!
         </Text>
       </View>
     );
   }
 
-  const latestSummary = summaries[0];
-
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.header}>
         <Text style={styles.title}>Your Growth Journey</Text>
         <Text style={styles.subtitle}>
-          Insights from {cycle?.submissions_received || latestSummary.submission_count} trusted people who care
-          about you
+          Insights from {cycle?.submissions_received || latestSummary.submission_count} trusted
+          people who care about you
         </Text>
       </View>
 
@@ -230,9 +244,7 @@ export default function GrowthScreen() {
           <Award size={24} color="#10B981" strokeWidth={2} />
           <Text style={styles.cardTitle}>Your Strengths</Text>
         </View>
-        <Text style={styles.cardDescription}>
-          These are the qualities that shine brightest in you
-        </Text>
+        <Text style={styles.cardDescription}>These are the qualities that shine brightest in you</Text>
         {Array.isArray(latestSummary.top_strengths) &&
           latestSummary.top_strengths.map((strength: any, index: number) => (
             <View key={index} style={styles.strengthItem}>
@@ -241,9 +253,7 @@ export default function GrowthScreen() {
               </View>
               <View style={styles.strengthContent}>
                 <Text style={styles.strengthName}>{strength.trait}</Text>
-                <Text style={styles.strengthScore}>
-                  Average: {strength.score.toFixed(1)}/5.0
-                </Text>
+                <Text style={styles.strengthScore}>Average: {strength.score.toFixed(1)}/5.0</Text>
               </View>
             </View>
           ))}
@@ -254,9 +264,7 @@ export default function GrowthScreen() {
           <Target size={24} color="#3B82F6" strokeWidth={2} />
           <Text style={styles.cardTitle}>Growth Opportunities</Text>
         </View>
-        <Text style={styles.cardDescription}>
-          Areas where you can continue to develop and grow
-        </Text>
+        <Text style={styles.cardDescription}>Areas where you can continue to develop and grow</Text>
         {Array.isArray(latestSummary.growth_opportunities) &&
           latestSummary.growth_opportunities.map((opportunity: any, index: number) => (
             <View key={index} style={styles.opportunityItem}>
@@ -279,7 +287,8 @@ export default function GrowthScreen() {
 
           <View style={styles.importantNoteCard}>
             <Text style={styles.importantNoteText}>
-              Remember, this feedback reflects how others experience you—it's valuable insight, not a verdict on your worth.
+              Remember, this feedback reflects how others experience you. It is valuable insight,
+              not a verdict on your worth.
             </Text>
           </View>
 
@@ -290,9 +299,7 @@ export default function GrowthScreen() {
                 <View key={index} style={styles.remainingTraitRow}>
                   <Text style={styles.remainingTraitText}>
                     {item.trait}:{' '}
-                    <Text style={styles.remainingTraitScore}>
-                      {item.score.toFixed(1)}/5
-                    </Text>
+                    <Text style={styles.remainingTraitScore}>{item.score.toFixed(1)}/5</Text>
                   </Text>
                 </View>
               ))}
@@ -304,23 +311,29 @@ export default function GrowthScreen() {
       {latestSummary.comparison_to_previous && (
         <View style={styles.comparisonCard}>
           <Text style={styles.comparisonTitle}>Your Progress</Text>
-          <Text style={styles.comparisonText}>
-            {latestSummary.comparison_to_previous}
-          </Text>
+          <Text style={styles.comparisonText}>{latestSummary.comparison_to_previous}</Text>
         </View>
       )}
 
-      {recommendations.length > 0 && (
-        <View style={styles.recommendationsSection}>
-          <Text style={styles.sectionTitle}>Growth Recommendations</Text>
-          <Text style={styles.sectionDescription}>
-            Small, actionable steps to help you grow
-          </Text>
-          {recommendations.map((rec) => (
+      {/* Recommendations: always show section (empty state when none) */}
+      <View style={styles.recommendationsSection}>
+        <Text style={styles.sectionTitle}>Growth Recommendations</Text>
+        <Text style={styles.sectionDescription}>Small, actionable steps to help you grow</Text>
+
+        {sortedRecommendations.length === 0 ? (
+          <View style={styles.recommendationsEmpty}>
+            <Text style={styles.recommendationsEmptyTitle}>No recommendations yet</Text>
+            <Text style={styles.recommendationsEmptyText}>
+              Once your summary generates actions, they will appear here. Keep collecting feedback.
+            </Text>
+          </View>
+        ) : (
+          sortedRecommendations.map((rec) => (
             <TouchableOpacity
               key={rec.id}
               style={styles.recommendationCard}
               onPress={() => toggleRecommendation(rec.id, rec.is_completed)}
+              activeOpacity={0.85}
             >
               <View style={styles.recommendationHeader}>
                 {rec.is_completed ? (
@@ -337,6 +350,7 @@ export default function GrowthScreen() {
                   {rec.title}
                 </Text>
               </View>
+
               <Text
                 style={[
                   styles.recommendationDescription,
@@ -345,6 +359,7 @@ export default function GrowthScreen() {
               >
                 {rec.description}
               </Text>
+
               <View style={styles.recommendationBadge}>
                 <Text style={styles.recommendationBadgeText}>
                   {rec.recommendation_type === 'strength'
@@ -355,16 +370,16 @@ export default function GrowthScreen() {
                 </Text>
               </View>
             </TouchableOpacity>
-          ))}
-        </View>
-      )}
+          ))
+        )}
+      </View>
 
       <View style={styles.encouragementCard}>
         <Sparkles size={24} color="#F59E0B" strokeWidth={2} />
         <Text style={styles.encouragementTitle}>Remember</Text>
         <Text style={styles.encouragementText}>
-          Growth is a journey, not a destination. Every small step forward is
-          progress. Be patient and kind with yourself as you continue to grow.
+          Growth is a journey, not a destination. Every small step forward is progress. Be patient
+          and kind with yourself as you continue to grow.
         </Text>
       </View>
     </ScrollView>
@@ -372,13 +387,9 @@ export default function GrowthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  content: {
-    padding: 20,
-  },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  content: { padding: 20 },
+
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -386,10 +397,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     paddingHorizontal: 20,
   },
-  loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
+  loadingText: { fontSize: 16, color: '#6B7280' },
+
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -404,27 +413,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
   },
-  emptyText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  header: {
-    marginBottom: 24,
-    paddingTop: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    lineHeight: 24,
-  },
+  emptyText: { fontSize: 16, color: '#6B7280', textAlign: 'center', lineHeight: 24 },
+
+  header: { marginBottom: 24, paddingTop: 20 },
+  title: { fontSize: 32, fontWeight: '700', color: '#111827', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#6B7280', lineHeight: 24 },
+
   strengthsCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -433,23 +427,19 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#10B981',
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  cardDescription: {
-    fontSize: 14,
-    color: '#6B7280',
+  opportunitiesCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 16,
-    lineHeight: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
   },
+
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  cardTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  cardDescription: { fontSize: 14, color: '#6B7280', marginBottom: 16, lineHeight: 20 },
+
   strengthItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -466,28 +456,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  strengthContent: {
-    flex: 1,
-  },
-  strengthName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 2,
-  },
-  strengthScore: {
-    fontSize: 14,
-    color: '#059669',
-    fontWeight: '600',
-  },
-  opportunitiesCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3B82F6',
-  },
+  strengthContent: { flex: 1 },
+  strengthName: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 2 },
+  strengthScore: { fontSize: 14, color: '#059669', fontWeight: '600' },
+
   opportunityItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -504,32 +476,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  opportunityContent: {
-    flex: 1,
-  },
-  opportunityName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  opportunityNote: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-  patternsCard: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-  },
-  patternsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#92400E',
-    marginBottom: 12,
-  },
+  opportunityContent: { flex: 1 },
+  opportunityName: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 4 },
+  opportunityNote: { fontSize: 14, color: '#6B7280', lineHeight: 20 },
+
+  patternsCard: { backgroundColor: '#FEF3C7', borderRadius: 16, padding: 20, marginBottom: 16 },
+  patternsTitle: { fontSize: 18, fontWeight: '600', color: '#92400E', marginBottom: 12 },
+
   importantNoteCard: {
     backgroundColor: '#FBBF24',
     borderRadius: 12,
@@ -545,91 +498,38 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: 'center',
   },
-  remainingTraitsSection: {
-    marginTop: 20,
-  },
-  remainingTraitsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#92400E',
-    marginBottom: 8,
-  },
-  remainingTraitRow: {
-    marginBottom: 8,
-  },
-  remainingTraitText: {
-    fontSize: 14,
-    color: '#78350F',
-    lineHeight: 20,
-  },
-  remainingTraitScore: {
-    fontWeight: '700',
-    color: '#92400E',
-  },
-  comparisonCard: {
-    backgroundColor: '#E0E7FF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-  },
-  comparisonTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#3730A3',
-    marginBottom: 8,
-  },
-  comparisonText: {
-    fontSize: 15,
-    color: '#4338CA',
-    lineHeight: 22,
-  },
-  recommendationsSection: {
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 6,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  recommendationCard: {
+
+  remainingTraitsSection: { marginTop: 20 },
+  remainingTraitsTitle: { fontSize: 16, fontWeight: '600', color: '#92400E', marginBottom: 8 },
+  remainingTraitRow: { marginBottom: 8 },
+  remainingTraitText: { fontSize: 14, color: '#78350F', lineHeight: 20 },
+  remainingTraitScore: { fontWeight: '700', color: '#92400E' },
+
+  comparisonCard: { backgroundColor: '#E0E7FF', borderRadius: 16, padding: 20, marginBottom: 16 },
+  comparisonTitle: { fontSize: 18, fontWeight: '600', color: '#3730A3', marginBottom: 8 },
+  comparisonText: { fontSize: 15, color: '#4338CA', lineHeight: 22 },
+
+  recommendationsSection: { marginTop: 8, marginBottom: 16 },
+  sectionTitle: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 6 },
+  sectionDescription: { fontSize: 14, color: '#6B7280', marginBottom: 16, lineHeight: 20 },
+
+  recommendationsEmpty: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  recommendationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-  },
-  recommendationTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  recommendationTitleCompleted: {
-    textDecorationLine: 'line-through',
-    color: '#9CA3AF',
-  },
-  recommendationDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-  recommendationDescriptionCompleted: {
-    color: '#9CA3AF',
-  },
+  recommendationsEmptyTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 6 },
+  recommendationsEmptyText: { fontSize: 14, color: '#6B7280', lineHeight: 20 },
+
+  recommendationCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 12 },
+  recommendationHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  recommendationTitle: { flex: 1, fontSize: 16, fontWeight: '600', color: '#111827' },
+  recommendationTitleCompleted: { textDecorationLine: 'line-through', color: '#9CA3AF' },
+  recommendationDescription: { fontSize: 14, color: '#6B7280', lineHeight: 20, marginBottom: 8 },
+  recommendationDescriptionCompleted: { color: '#9CA3AF' },
+
   recommendationBadge: {
     alignSelf: 'flex-start',
     backgroundColor: '#F3F4F6',
@@ -637,28 +537,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
   },
-  recommendationBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  encouragementCard: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-  },
-  encouragementTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#92400E',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  encouragementText: {
-    fontSize: 14,
-    color: '#78350F',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
+  recommendationBadgeText: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
+
+  encouragementCard: { backgroundColor: '#FEF3C7', borderRadius: 16, padding: 20, alignItems: 'center' },
+  encouragementTitle: { fontSize: 18, fontWeight: '600', color: '#92400E', marginTop: 12, marginBottom: 8 },
+  encouragementText: { fontSize: 14, color: '#78350F', textAlign: 'center', lineHeight: 20 },
 });
