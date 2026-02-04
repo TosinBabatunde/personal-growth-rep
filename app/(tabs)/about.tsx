@@ -10,25 +10,26 @@ import {
   Info,
 } from 'lucide-react-native';
 
+// ✅ Move traits outside component
+const TRAITS = [
+  'Hygiene',
+  'Approachability',
+  'Trustworthiness',
+  'Friendliness',
+  'Kindness',
+  'Open-mindedness',
+  'Selflessness',
+  'Thoughtfulness',
+  'Gentleness',
+  'Patience',
+  'Helpfulness',
+  'Listening ability',
+];
+
 export default function AboutScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const bottomPad = tabBarHeight + Math.max(16, insets.bottom);
-
-  const TRAITS = [
-    'Hygiene',
-    'Approachability',
-    'Trustworthiness',
-    'Friendliness',
-    'Kindness',
-    'Open-mindedness',
-    'Selflessness',
-    'Thoughtfulness',
-    'Gentleness',
-    'Patience',
-    'Helpfulness',
-    'Listening ability',
-  ];
 
   return (
     <ScrollView
@@ -131,6 +132,10 @@ export default function AboutScreen() {
           patterns in how you show up, not define who you are.
         </Text>
 
+        <Text style={styles.ratingNote}>
+          Traits are rated on a scale from 1 to 5.
+        </Text>
+
         <View style={styles.traitsWrap}>
           {TRAITS.map((t) => (
             <View key={t} style={styles.traitChip}>
@@ -162,7 +167,7 @@ export default function AboutScreen() {
         </Text>
       </View>
 
-      {/* Footer note */}
+      {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           Tip: Take what resonates, leave what doesn’t, and go at your own pace.
@@ -232,6 +237,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#374151',
+  },
+
+  ratingNote: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
 
   aggregationNote: {
