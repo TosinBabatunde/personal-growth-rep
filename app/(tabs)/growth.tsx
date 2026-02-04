@@ -13,6 +13,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
   TrendingUp,
+  TrendingDown,
+  Minus,
   Sparkles,
   CheckCircle,
   Circle,
@@ -55,15 +57,18 @@ interface TraitScore {
  * No trait-specific copy, so it scales for every user.
  */
 function getStrengthNarrative(score: number, percentile: number) {
-  if (percentile >= 0.8 && score >= 4.2) return 'This consistently stands out as one of your strongest qualities.';
+  if (percentile >= 0.8 && score >= 4.2)
+    return 'This consistently stands out as one of your strongest qualities.';
   if (score >= 4.0) return 'This is a clear strength that others regularly notice.';
   if (score >= 3.7) return 'This shows up positively, even if it is not always your top strength.';
   return 'This shows up sometimes, but is not yet a defining strength.';
 }
 
 function getGrowthNarrative(score: number, percentile: number) {
-  if (percentile <= 0.2 && score <= 3.2) return 'This is a high-leverage area. Small improvements could make a noticeable difference.';
-  if (score <= 3.6) return 'Developing this further could meaningfully improve how others experience you.';
+  if (percentile <= 0.2 && score <= 3.2)
+    return 'This is a high-leverage area. Small improvements could make a noticeable difference.';
+  if (score <= 3.6)
+    return 'Developing this further could meaningfully improve how others experience you.';
   if (score <= 4.0) return 'This is already solid, but sharpening it could help.';
   return 'This is generally strong, but feedback suggests a bit of fine-tuning would help.';
 }
@@ -80,12 +85,45 @@ function getThemeIntro(count: number) {
   return 'Some early patterns are starting to appear:';
 }
 
+function TrendBadge({ delta }: { delta: number }) {
+  const TREND_EPS = 0.15; // ignore tiny noise
+  const trend = delta > TREND_EPS ? 'up' : delta < -TREND_EPS ? 'down' : 'flat';
+  const abs = Math.abs(delta);
+  const label = abs < 0.01 ? '0.0' : abs.toFixed(1);
+
+  if (trend === 'up') {
+    return (
+      <View style={styles.trendRow}>
+        <TrendingUp size={16} color="#10B981" strokeWidth={2} />
+        <Text style={styles.trendUp}>+{label}</Text>
+      </View>
+    );
+  }
+
+  if (trend === 'down') {
+    return (
+      <View style={styles.trendRow}>
+        <TrendingDown size={16} color="#EF4444" strokeWidth={2} />
+        <Text style={styles.trendDown}>-{label}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.trendRow}>
+      <Minus size={16} color="#9CA3AF" strokeWidth={2} />
+      <Text style={styles.trendFlat}>{label}</Text>
+    </View>
+  );
+}
+
 export default function GrowthScreen() {
   const { profile } = useAuth();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
 
   const [summaries, setSummaries] = useState<FeedbackSummary[]>([]);
+  const [previousSummary, setPreviousSummary] = useState<FeedbackSummary | null>(null);
   const [cycle, setCycle] = useState<FeedbackCycle | null>(null);
   const [recommendations, setRecommendations] = useState<GrowthRecommendation[]>([]);
   const [remainingTraits, setRemainingTraits] = useState<TraitScore[]>([]);
@@ -131,6 +169,22 @@ export default function GrowthScreen() {
     return map;
   }, [allTraitScores]);
 
+  const prevAllTraitScores: TraitScore[] = useMemo(() => {
+    const raw = Array.isArray((previousSummary as any)?.all_trait_scores)
+      ? (previousSummary as any).all_trait_scores
+      : [];
+
+    return raw
+      .map((t: any) => ({ trait: String(t.trait), score: Number(t.score || 0) }))
+      .filter((t: TraitScore) => t.trait);
+  }, [previousSummary]);
+
+  const prevTraitScoreMap = useMemo(() => {
+    const map = new Map<string, number>();
+    prevAllTraitScores.forEach((t) => map.set(t.trait, t.score));
+    return map;
+  }, [prevAllTraitScores]);
+
   const themeBullets = useMemo(() => {
     const raw = latestSummary?.patterns || '';
     if (!raw) return [];
@@ -169,6 +223,9 @@ export default function GrowthScreen() {
       if (mountedRef.current) setSummaries(summariesData || []);
 
       const latest = summariesData && summariesData.length > 0 ? summariesData[0] : null;
+      const prev = summariesData && summariesData.length > 1 ? summariesData[1] : null;
+
+      if (mountedRef.current) setPreviousSummary(prev || null);
 
       // Load recs tied to latest summary, if it exists
       if (!latest?.id) {
@@ -202,7 +259,9 @@ export default function GrowthScreen() {
 
         const remaining: TraitScore[] = rawAll
           .map((t: any) => ({ trait: String(t.trait), score: Number(t.score || 0) }))
-          .filter((t: TraitScore) => t.trait && !strengthTraits.has(t.trait) && !growthTraits.has(t.trait))
+          .filter(
+            (t: TraitScore) => t.trait && !strengthTraits.has(t.trait) && !growthTraits.has(t.trait)
+          )
           .sort((a, b) => b.score - a.score)
           .slice(0, 8);
 
@@ -320,6 +379,10 @@ export default function GrowthScreen() {
             <Text style={styles.snapshotSmall}>Done</Text>
           </View>
         </View>
+
+        {previousSummary ? (
+          <Text style={styles.cycleHint}>Trend arrows compare this cycle to your previous one.</Text>
+        ) : null}
       </View>
 
       {/* Strengths */}
@@ -337,6 +400,9 @@ export default function GrowthScreen() {
             const score = Number(strength.score || traitScoreMap.get(strength.trait) || 0);
             const percentile = traitPercentileMap.get(strength.trait) ?? 0.5;
 
+            const prev = prevTraitScoreMap.get(strength.trait);
+            const delta = prev !== undefined ? score - prev : 0;
+
             return (
               <View key={index} style={styles.strengthItem}>
                 <View style={styles.strengthBadge}>
@@ -345,16 +411,21 @@ export default function GrowthScreen() {
 
                 <View style={styles.strengthContent}>
                   <Text style={styles.strengthName}>{strength.trait}</Text>
-                  <Text style={styles.strengthScore}>Average: {score.toFixed(1)}/5.0</Text>
-                  <Text style={styles.strengthInsight}>
-                    {getStrengthNarrative(score, percentile)}
-                  </Text>
+
+                  <View style={styles.scoreRow}>
+                    <Text style={styles.strengthScore}>Average: {score.toFixed(1)}/5.0</Text>
+                    {prev !== undefined ? <TrendBadge delta={delta} /> : null}
+                  </View>
+
+                  <Text style={styles.strengthInsight}>{getStrengthNarrative(score, percentile)}</Text>
                 </View>
               </View>
             );
           })
         ) : (
-          <Text style={styles.cardEmptyText}>No strength highlights yet. More feedback will reveal clearer standouts.</Text>
+          <Text style={styles.cardEmptyText}>
+            No strength highlights yet. More feedback will reveal clearer standouts.
+          </Text>
         )}
       </View>
 
@@ -372,6 +443,10 @@ export default function GrowthScreen() {
           latestSummary.growth_opportunities.map((opportunity: any, index: number) => {
             const score = traitScoreMap.get(opportunity.trait);
             const percentile = traitPercentileMap.get(opportunity.trait) ?? 0.5;
+
+            const prev = prevTraitScoreMap.get(opportunity.trait);
+            const delta =
+              score !== undefined && prev !== undefined ? score - prev : 0;
 
             const label =
               score === undefined
@@ -400,6 +475,7 @@ export default function GrowthScreen() {
                     {score !== undefined && (
                       <Text style={styles.opportunityScore}>{score.toFixed(1)}/5</Text>
                     )}
+                    {score !== undefined && prev !== undefined ? <TrendBadge delta={delta} /> : null}
                   </View>
 
                   <Text style={styles.opportunityNote}>{narrative}</Text>
@@ -408,7 +484,9 @@ export default function GrowthScreen() {
             );
           })
         ) : (
-          <Text style={styles.cardEmptyText}>No growth focus areas yet. More feedback will reveal clearer patterns.</Text>
+          <Text style={styles.cardEmptyText}>
+            No growth focus areas yet. More feedback will reveal clearer patterns.
+          </Text>
         )}
       </View>
 
@@ -448,27 +526,36 @@ export default function GrowthScreen() {
                 These traits are steady. Not your top strengths or biggest growth areas, but they still shape your day-to-day impact.
               </Text>
 
-              {remainingTraits.map((item, index) => (
-                <View key={index} style={styles.remainingTraitRow}>
-                  <View style={styles.remainingTraitTopRow}>
-                    <Text style={styles.remainingTraitName}>{item.trait}</Text>
-                    <Text style={styles.remainingTraitScore}>{item.score.toFixed(1)}/5</Text>
-                  </View>
+              {remainingTraits.map((item, index) => {
+                const prev = prevTraitScoreMap.get(item.trait);
+                const delta = prev !== undefined ? item.score - prev : 0;
 
-                  <View style={styles.remainingBarTrack}>
-                    <View
-                      style={[
-                        styles.remainingBarFill,
-                        { width: `${Math.min(100, (item.score / 5) * 100)}%` },
-                      ]}
-                    />
-                  </View>
+                return (
+                  <View key={index} style={styles.remainingTraitRow}>
+                    <View style={styles.remainingTraitTopRow}>
+                      <Text style={styles.remainingTraitName}>{item.trait}</Text>
 
-                  <Text style={styles.remainingTraitHintText}>
-                    {getBalancedTraitNarrative(item.score)}
-                  </Text>
-                </View>
-              ))}
+                      <View style={styles.rightMeta}>
+                        <Text style={styles.remainingTraitScore}>{item.score.toFixed(1)}/5</Text>
+                        {prev !== undefined ? <TrendBadge delta={delta} /> : null}
+                      </View>
+                    </View>
+
+                    <View style={styles.remainingBarTrack}>
+                      <View
+                        style={[
+                          styles.remainingBarFill,
+                          { width: `${Math.min(100, (item.score / 5) * 100)}%` },
+                        ]}
+                      />
+                    </View>
+
+                    <Text style={styles.remainingTraitHintText}>
+                      {getBalancedTraitNarrative(item.score)}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           )}
         </View>
@@ -584,6 +671,7 @@ const styles = StyleSheet.create({
   header: { marginBottom: 18, paddingTop: 20 },
   title: { fontSize: 32, fontWeight: '700', color: '#111827', marginBottom: 8 },
   subtitle: { fontSize: 16, color: '#6B7280', lineHeight: 24 },
+  cycleHint: { marginTop: 10, fontSize: 12, color: '#6B7280' },
 
   snapshotRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   snapshotPill: {
@@ -640,6 +728,13 @@ const styles = StyleSheet.create({
   strengthName: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 2 },
   strengthScore: { fontSize: 14, color: '#059669', fontWeight: '600' },
   strengthInsight: { fontSize: 13, color: '#374151', lineHeight: 18, marginTop: 6 },
+
+  scoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+
+  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  trendUp: { fontSize: 12, fontWeight: '800', color: '#10B981' },
+  trendDown: { fontSize: 12, fontWeight: '800', color: '#EF4444' },
+  trendFlat: { fontSize: 12, fontWeight: '800', color: '#9CA3AF' },
 
   opportunityItem: {
     flexDirection: 'row',
@@ -707,7 +802,15 @@ const styles = StyleSheet.create({
   remainingTraitTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   remainingTraitName: { fontSize: 14, fontWeight: '700', color: '#78350F' },
   remainingTraitScore: { fontSize: 13, fontWeight: '800', color: '#92400E' },
-  remainingBarTrack: { height: 8, backgroundColor: '#FDE68A', borderRadius: 999, marginTop: 6, overflow: 'hidden' },
+  rightMeta: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+
+  remainingBarTrack: {
+    height: 8,
+    backgroundColor: '#FDE68A',
+    borderRadius: 999,
+    marginTop: 6,
+    overflow: 'hidden',
+  },
   remainingBarFill: { height: 8, backgroundColor: '#F59E0B', borderRadius: 999 },
   remainingTraitHintText: { fontSize: 12, color: '#92400E', marginTop: 6, lineHeight: 16 },
 
@@ -745,7 +848,12 @@ const styles = StyleSheet.create({
   },
   recommendationBadgeText: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
 
-  encouragementCard: { backgroundColor: '#FEF3C7', borderRadius: 16, padding: 20, alignItems: 'center' },
+  encouragementCard: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+  },
   encouragementTitle: { fontSize: 18, fontWeight: '700', color: '#92400E', marginTop: 12, marginBottom: 8 },
   encouragementText: { fontSize: 14, color: '#78350F', textAlign: 'center', lineHeight: 20 },
 });
