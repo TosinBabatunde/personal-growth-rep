@@ -123,7 +123,7 @@ export default function AboutScreen() {
           <View style={[styles.iconBadge, styles.iconBadgeBlue]}>
             <Info size={18} color="#1D4ED8" strokeWidth={2} />
           </View>
-          <Text style={styles.cardTitle}>What you’re being rated on</Text>
+          <Text style={styles.cardTitle}>How others experience you</Text>
         </View>
 
         <Text style={styles.cardText}>
