@@ -339,12 +339,13 @@ greetingRow: {
   alignItems: 'center',
   marginBottom: 8,
   justifyContent: 'flex-start',
-  flexWrap: 'wrap',
+  // flexWrap: 'wrap',
 },
 
 greetingTextWrap: {
   flexShrink: 1,      // allows wrapping
-  maxWidth: '78%',    // prevents the name from bulldozing the icon
+  flex: 1,
+  // maxWidth: '78%',    // prevents the name from bulldozing the icon
 },
 
   name: {
@@ -362,7 +363,7 @@ iconContainer: {
   backgroundColor: '#FEF2F2',
   alignItems: 'center',
   justifyContent: 'center',
-  marginLeft: 10,     // key: reliable spacing across iOS/Android/Web
+  marginLeft: 6,  
 },
 
   subtitle: {
