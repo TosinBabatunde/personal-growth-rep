@@ -41,7 +41,8 @@ export default function AboutScreen() {
       if (error) throw error;
 
       await refreshProfile();
-      router.replace('/(tabs)/index');
+      // router.replace('/(tabs)/index');
+      router.replace('/');
     } catch (e: any) {
       Alert.alert("Couldn't save yet", e?.message ?? 'Please try again.');
     } finally {
