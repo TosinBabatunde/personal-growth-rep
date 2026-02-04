@@ -334,31 +334,36 @@ const styles = StyleSheet.create({
   },
 
   // ✅ CHANGES: bring icon closer to "Hello, FirstName"
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8, // was 12 (tighter)
-  },
-  greetingTextWrap: {
-    flex: 1,
-    flexShrink: 1,
-    paddingRight: 0, // was 8 (remove forced spacing)
-  },
+greetingRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 8,
+  justifyContent: 'flex-start',
+  flexWrap: 'wrap',
+},
+
+greetingTextWrap: {
+  flexShrink: 1,      // allows wrapping
+  maxWidth: '78%',    // prevents the name from bulldozing the icon
+},
+
   name: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#111827',
-    lineHeight: 38,
-  },
-  iconContainer: {
-    width: 52, // was 60 (slightly tighter)
-    height: 52, // was 60
-    borderRadius: 26, // was 30
-    backgroundColor: '#FEF2F2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  fontSize: 32,
+  fontWeight: '700',
+  color: '#111827',
+  lineHeight: 38,
+  flexShrink: 1,
+},
+
+iconContainer: {
+  width: 52,
+  height: 52,
+  borderRadius: 26,
+  backgroundColor: '#FEF2F2',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginLeft: 10,     // key: reliable spacing across iOS/Android/Web
+},
 
   subtitle: {
     fontSize: 16,
