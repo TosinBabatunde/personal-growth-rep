@@ -1,4 +1,3 @@
-// supabase/functions/send-welcome-email/index.ts
 import { serve } from "https://deno.land/std/http/server.ts";
 import { Resend } from "https://esm.sh/resend";
 import { createClient } from "https://esm.sh/@supabase/supabase-js";
@@ -19,12 +18,15 @@ serve(async (req) => {
   await resend.emails.send({
     from: "Growth <hello@growthapp.com>",
     to: record.email,
-    subject: "Welcome to Growth 🌱",
+    subject: "Welcome to Growth",
     html: `
       <p>Hi ${record.full_name || "there"},</p>
       <p>
         Welcome to Growth. You’ve taken a brave step toward deeper self-awareness,
         and we’re honored to walk this journey with you.
+      </p>
+      <p>
+        When you’re ready, invite people you trust and begin your first feedback cycle.
       </p>
       <p>— The Growth Team</p>
     `,
