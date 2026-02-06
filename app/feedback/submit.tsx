@@ -157,6 +157,7 @@ export default function SubmitFeedbackScreen() {
   };
 
   const handleSubmit = async () => {
+    Alert.alert('Debug', 'Submit pressed');
     const incomplete = ratings.filter((r) => r.rating === 0);
     if (incomplete.length > 0) {
       Alert.alert('Incomplete', 'Please rate all characteristics');
@@ -169,6 +170,10 @@ export default function SubmitFeedbackScreen() {
     console.log('SUPABASE URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
 
     setSubmitting(true);
+    console.log('Submitting started...');
+    console.log('Request id:', request.id);
+    console.log('Token param:', token);
+
     try {
       const submissions = ratings.map((rating) => ({
         request_id: request.id,
@@ -183,14 +188,17 @@ export default function SubmitFeedbackScreen() {
       const { data: ins, error: submissionsError } = await supabase
         .from('feedback_submissions')
         .insert(submissions)
-        .select('id')
-        .limit(1);
-
+        .select('id');
+      
       console.log('feedback_submissions submissionsError:', submissionsError);
+      console.log('feedback_submissions inserted count:', ins?.length);
       console.log('feedback_submissions inserted sample:', ins?.[0]);
-
+      
       if (submissionsError) throw submissionsError;
+      if (!ins || ins.length === 0) throw new Error('Submission insert returned no rows (possibly blocked).');
 
+      console.log('Insert done, now updating feedback_requests status to completed...');
+      
       // ✅ DEBUG: detect silent RLS filtering by requiring a returned row
       const { data: updatedReq, error: updateError } = await supabase
         .from('feedback_requests')
@@ -208,6 +216,8 @@ export default function SubmitFeedbackScreen() {
       if (updateError) throw updateError;
       if (!updatedReq) throw new Error('Request update was blocked (no row returned).');
 
+      console.log('feedback_requests updated successfully ✅', updatedReq);
+      
       const { data: cycleData } = await supabase
         .from('feedback_cycles')
         .select('submissions_received')
@@ -270,6 +280,7 @@ export default function SubmitFeedbackScreen() {
     return (
       <ScrollView
         style={styles.container}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.content,
           { paddingBottom: Math.max(40, insets.bottom + 20) },
@@ -317,6 +328,7 @@ export default function SubmitFeedbackScreen() {
   return (
     <ScrollView
       style={styles.container}
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={[
         styles.content,
         { paddingBottom: Math.max(40, insets.bottom + 20) },
