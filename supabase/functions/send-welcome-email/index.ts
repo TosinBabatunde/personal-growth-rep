@@ -70,6 +70,11 @@ serve(async (req) => {
         </div>
       `,
     });
+
+    if ((sendResult as any)?.error) {
+      console.error("Resend failed:", (sendResult as any).error);
+      return new Response("Resend failed", { status: 500 });
+    }
     
     console.log("Resend send result", sendResult);
 
