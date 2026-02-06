@@ -13,9 +13,7 @@ if (!RESEND_API_KEY) console.warn("Missing RESEND_API_KEY");
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 const supabase =
-  SUPABASE_URL && SERVICE_ROLE_KEY
-    ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
-    : null;
+  SUPABASE_URL && SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY) : null;
 
 serve(async (req) => {
   try {
@@ -23,14 +21,17 @@ serve(async (req) => {
     const record = body?.record;
 
     // Expecting a DB webhook payload like { type, table, record, old_record }
-    if (!record?.id) {
-      return new Response("Missing record.id", { status: 400 });
-    }
+    if (!record) return new Response("Missing record", { status: 400 });
+    if (!record.id) return new Response("Missing record.id", { status: 400 });
 
     // Only send if we have an email and we haven't already sent
     const email = (record.email || "").trim();
     if (!email) return new Response("Skipped: no email", { status: 200 });
-    if (record.welcome_email_sent) return new Response("Skipped: already sent", { status: 200 });
+
+    if (record.welcome_email_sent) {
+      console.log("Skipped", { id: record.id, reason: "already sent" });
+      return new Response("Skipped: already sent", { status: 200 });
+    }
 
     // If name isn't set yet, skip (prevents sending too early on initial upsert)
     const fullName = (record.full_name || "").trim();
@@ -41,7 +42,7 @@ serve(async (req) => {
 
     // Send email
     await resend.emails.send({
-     from: "Growth <onboarding@resend.dev>",
+      from: "Growth <onboarding@resend.dev>",
       to: email,
       subject: "Welcome to Growth",
       html: `
