@@ -28,10 +28,21 @@ serve(async (req) => {
     const email = (record.email || "").trim();
     if (!email) return new Response("Skipped: no email", { status: 200 });
 
-    if (record.welcome_email_sent) {
-      console.log("Skipped", { id: record.id, reason: "already sent" });
+    if (record.welcome_email_sent === true) {
+      console.log("Skipped", {
+        id: record.id,
+        reason: "already sent",
+        welcome_email_sent: record.welcome_email_sent,
+      });
       return new Response("Skipped: already sent", { status: 200 });
     }
+  
+    console.log("Webhook record snapshot", {
+      id: record.id,
+      email: record.email,
+      full_name: record.full_name,
+      welcome_email_sent: record.welcome_email_sent,
+    });
 
     // If name isn't set yet, skip (prevents sending too early on initial upsert)
     const fullName = (record.full_name || "").trim();
@@ -41,7 +52,7 @@ serve(async (req) => {
     if (!supabase) return new Response("Missing Supabase env vars", { status: 500 });
 
     // Send email
-    await resend.emails.send({
+    const sendResult = await resend.emails.send({
       from: "Growth <onboarding@resend.dev>",
       to: email,
       subject: "Welcome to Growth",
@@ -59,6 +70,8 @@ serve(async (req) => {
         </div>
       `,
     });
+    
+    console.log("Resend send result", sendResult);
 
     // Mark as sent (idempotency)
     const { error } = await supabase
