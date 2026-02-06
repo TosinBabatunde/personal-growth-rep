@@ -16,7 +16,7 @@ serve(async (req) => {
   }
 
   await resend.emails.send({
-    from: "Growth <hello@growthapp.com>",
+    from: "Growth <onboarding@resend.dev>",
     to: record.email,
     subject: "Welcome to Growth",
     html: `
