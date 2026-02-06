@@ -1,10 +1,14 @@
 import React from 'react';
 import { Platform } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, Head } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider } from '@/contexts/AuthContext';
+
+export const unstable_settings = {
+  title: "Growth Feedback App",
+};
 
 // Web-only CSS to fix 100vh / browser bottom chrome issues (iOS Safari + Android Chrome)
 if (Platform.OS === 'web') {
@@ -17,6 +21,12 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
+        
+        {/* Web tab title (guaranteed) */}
+        <Head>
+          <title>Growth Feedback App</title>
+        </Head>
+        
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="(auth)" />
