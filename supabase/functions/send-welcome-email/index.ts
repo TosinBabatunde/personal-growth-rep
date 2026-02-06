@@ -73,7 +73,7 @@ serve(async (req) => {
 
     if ((sendResult as any)?.error) {
       console.error("Resend failed:", (sendResult as any).error);
-      return new Response("Resend failed", { status: 500 });
+      return new Response("Resend failed", { status: 200 });
     }
     
     console.log("Resend send result", sendResult);
