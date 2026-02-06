@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform } from 'react-native';
-import { Stack, Head } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
@@ -18,15 +18,15 @@ if (Platform.OS === 'web') {
 export default function RootLayout() {
   useFrameworkReady();
 
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      document.title = 'Growth Feedback App';
+    }
+  }, []);
+
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        
-        {/* Web tab title (guaranteed) */}
-        <Head>
-          <title>Growth Feedback App</title>
-        </Head>
-        
+      <AuthProvider>     
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="(auth)" />
