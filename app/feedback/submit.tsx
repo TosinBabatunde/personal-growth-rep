@@ -63,10 +63,12 @@ export default function SubmitFeedbackScreen() {
     try {
       const { data: requestData, error: requestError } = await supabase
         .from('feedback_requests')
-        .select(`
+        .select(
+          `
           *,
           users!feedback_requests_sender_id_fkey(full_name)
-        `)
+        `
+        )
         .eq('unique_token', token)
         .maybeSingle();
 
@@ -94,7 +96,7 @@ export default function SubmitFeedbackScreen() {
       setRequest({
         ...requestData,
         sender_name: senderName,
-        verification_hint: requestData.verification_hint
+        verification_hint: requestData.verification_hint,
       });
 
       const { data: traitsData, error: traitsError } = await supabase
@@ -141,9 +143,7 @@ export default function SubmitFeedbackScreen() {
     const cleanedInput = verificationInput.trim().replace(/\s+/g, ' ').toLowerCase();
     const hint = request.verification_hint.toLowerCase();
 
-    const inputCode = cleanedInput.length >= 4
-      ? cleanedInput.slice(-4)
-      : cleanedInput;
+    const inputCode = cleanedInput.length >= 4 ? cleanedInput.slice(-4) : cleanedInput;
 
     if (inputCode === hint || cleanedInput === hint) {
       setVerified(true);
@@ -165,6 +165,9 @@ export default function SubmitFeedbackScreen() {
 
     if (!request) return;
 
+    // ✅ DEBUG: confirm which Supabase project this client is pointing at
+    console.log('SUPABASE URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
+
     setSubmitting(true);
     try {
       const submissions = ratings.map((rating) => ({
@@ -176,21 +179,34 @@ export default function SubmitFeedbackScreen() {
         reflection: rating.reflection.trim() || null,
       }));
 
-      const { error: submissionsError } = await supabase
+      // ✅ DEBUG: confirm insert succeeded + show a sample inserted id
+      const { data: ins, error: submissionsError } = await supabase
         .from('feedback_submissions')
-        .insert(submissions);
+        .insert(submissions)
+        .select('id')
+        .limit(1);
+
+      console.log('feedback_submissions submissionsError:', submissionsError);
+      console.log('feedback_submissions inserted sample:', ins?.[0]);
 
       if (submissionsError) throw submissionsError;
 
-      const { error: updateError } = await supabase
+      // ✅ DEBUG: detect silent RLS filtering by requiring a returned row
+      const { data: updatedReq, error: updateError } = await supabase
         .from('feedback_requests')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString(),
         })
-        .eq('id', request.id);
+        .eq('id', request.id)
+        .select('id,status,completed_at')
+        .maybeSingle();
+
+      console.log('feedback_requests updateError:', updateError);
+      console.log('feedback_requests updatedReq:', updatedReq);
 
       if (updateError) throw updateError;
+      if (!updatedReq) throw new Error('Request update was blocked (no row returned).');
 
       const { data: cycleData } = await supabase
         .from('feedback_cycles')
@@ -198,12 +214,19 @@ export default function SubmitFeedbackScreen() {
         .eq('id', request.cycle_id)
         .single();
 
-      if (cycleData && cycleData.submissions_received % 10 === 0 && cycleData.submissions_received <= 50) {
+      // ✅ DEBUG: verify what the cycle counter currently says
+      console.log('feedback_cycles cycleData:', cycleData);
+
+      if (
+        cycleData &&
+        cycleData.submissions_received % 10 === 0 &&
+        cycleData.submissions_received <= 50
+      ) {
         const apiUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/generate-summary`;
         await fetch(apiUrl, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+            Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -247,7 +270,10 @@ export default function SubmitFeedbackScreen() {
     return (
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Math.max(40, insets.bottom + 20) },
+        ]}
       >
         <View style={styles.header}>
           <View style={styles.iconContainer}>
@@ -255,7 +281,8 @@ export default function SubmitFeedbackScreen() {
           </View>
           <Text style={styles.title}>Verify Your Identity</Text>
           <Text style={styles.subtitle}>
-            To ensure this feedback is from the intended recipient, please enter the verification code shared with you.
+            To ensure this feedback is from the intended recipient, please enter the verification
+            code shared with you.
           </Text>
         </View>
 
@@ -279,7 +306,8 @@ export default function SubmitFeedbackScreen() {
             <Text style={styles.verifyButtonText}>Verify & Continue</Text>
           </TouchableOpacity>
           <Text style={styles.verificationHint}>
-            This link was sent specifically to you. If you didn't receive a verification code, please contact the person who sent you this link.
+            This link was sent specifically to you. If you didn't receive a verification code,
+            please contact the person who sent you this link.
           </Text>
         </View>
       </ScrollView>
@@ -289,7 +317,10 @@ export default function SubmitFeedbackScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 20) }]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: Math.max(40, insets.bottom + 20) },
+      ]}
     >
       <View style={styles.header}>
         <View style={styles.iconContainer}>
@@ -305,12 +336,12 @@ export default function SubmitFeedbackScreen() {
       <View style={styles.reassuranceCard}>
         <Text style={styles.reassuranceTitle}>Your Privacy Matters</Text>
         <Text style={styles.reassuranceText}>
-          Individual responses are never shown. Your feedback will be combined
-          with others to create encouraging, growth-focused insights.
+          Individual responses are never shown. Your feedback will be combined with others to create
+          encouraging, growth-focused insights.
         </Text>
       </View>
 
-      {traits.map((trait, index) => {
+      {traits.map((trait) => {
         const rating = ratings.find((r) => r.trait_id === trait.id);
         return (
           <View key={trait.id} style={styles.traitCard}>
@@ -361,8 +392,8 @@ export default function SubmitFeedbackScreen() {
       </TouchableOpacity>
 
       <Text style={styles.footerNote}>
-        Thank you for taking the time to help {request?.sender_name || 'someone'} grow. Your kindness and
-        honesty make a real difference.
+        Thank you for taking the time to help {request?.sender_name || 'someone'} grow. Your kindness
+        and honesty make a real difference.
       </Text>
     </ScrollView>
   );
