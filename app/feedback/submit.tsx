@@ -37,7 +37,9 @@ interface Rating {
 }
 
 export default function SubmitFeedbackScreen() {
-  const { token } = useLocalSearchParams<{ token: string }>();
+  const params = useLocalSearchParams<{ token?: string | string[] }>();
+  const token = Array.isArray(params.token) ? params.token[0] : params.token;
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
@@ -51,6 +53,7 @@ export default function SubmitFeedbackScreen() {
 
   useEffect(() => {
     loadRequest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const loadRequest = async () => {
@@ -115,8 +118,8 @@ export default function SubmitFeedbackScreen() {
           reflection: '',
         }))
       );
-    } catch (error: any) {
-      setError(error.message || 'Failed to load feedback form');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load feedback form');
     } finally {
       setLoading(false);
     }
@@ -140,7 +143,11 @@ export default function SubmitFeedbackScreen() {
       return;
     }
 
-    const cleanedInput = verificationInput.trim().replace(/\s+/g, ' ').toLowerCase();
+    const cleanedInput = verificationInput
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+
     const hint = request.verification_hint.toLowerCase();
 
     const inputCode = cleanedInput.length >= 4 ? cleanedInput.slice(-4) : cleanedInput;
@@ -156,8 +163,8 @@ export default function SubmitFeedbackScreen() {
     }
   };
 
+  // ✅ BEST PRACTICE: submit through Edge Function (bypasses client RLS issues)
   const handleSubmit = async () => {
-    Alert.alert('Debug', 'Submit pressed');
     const incomplete = ratings.filter((r) => r.rating === 0);
     if (incomplete.length > 0) {
       Alert.alert('Incomplete', 'Please rate all characteristics');
@@ -165,94 +172,40 @@ export default function SubmitFeedbackScreen() {
     }
 
     if (!request) return;
-
-    // ✅ DEBUG: confirm which Supabase project this client is pointing at
-    console.log('SUPABASE URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
+    if (!token) {
+      Alert.alert('Error', 'Invalid feedback link (missing token)');
+      return;
+    }
 
     setSubmitting(true);
-    console.log('Submitting started...');
-    console.log('Request id:', request.id);
-    console.log('Token param:', token);
-
     try {
-      const submissions = ratings.map((rating) => ({
-        request_id: request.id,
-        cycle_id: request.cycle_id,
-        sender_id: request.sender_id,
-        trait_id: rating.trait_id,
-        rating: rating.rating,
-        reflection: rating.reflection.trim() || null,
-      }));
+      const payload = {
+        token,
+        verification_input: verificationInput?.trim() || null,
+        ratings: ratings.map((r) => ({
+          trait_id: r.trait_id,
+          rating: r.rating,
+          reflection: r.reflection.trim() || null,
+        })),
+      };
 
-      // ✅ DEBUG: confirm insert succeeded + show a sample inserted id
-      const { data: ins, error: submissionsError } = await supabase
-        .from('feedback_submissions')
-        .insert(submissions)
-        .select('id');
-      
-      console.log('feedback_submissions submissionsError:', submissionsError);
-      console.log('feedback_submissions inserted count:', ins?.length);
-      console.log('feedback_submissions inserted sample:', ins?.[0]);
-      
-      if (submissionsError) throw submissionsError;
-      if (!ins || ins.length === 0) throw new Error('Submission insert returned no rows (possibly blocked).');
+      const { data, error: fnError } = await supabase.functions.invoke(
+        'submit-feedback',
+        { body: payload }
+      );
 
-      console.log('Insert done, now updating feedback_requests status to completed...');
-      
-      // ✅ DEBUG: detect silent RLS filtering by requiring a returned row
-      const { data: updatedReq, error: updateError } = await supabase
-        .from('feedback_requests')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', request.id)
-        .select('id,status,completed_at')
-        .maybeSingle();
+      console.log('submit-feedback data:', data);
+      console.log('submit-feedback error:', fnError);
 
-      console.log('feedback_requests updateError:', updateError);
-      console.log('feedback_requests updatedReq:', updatedReq);
-
-      if (updateError) throw updateError;
-      if (!updatedReq) throw new Error('Request update was blocked (no row returned).');
-
-      console.log('feedback_requests updated successfully ✅', updatedReq);
-      
-      const { data: cycleData } = await supabase
-        .from('feedback_cycles')
-        .select('submissions_received')
-        .eq('id', request.cycle_id)
-        .single();
-
-      // ✅ DEBUG: verify what the cycle counter currently says
-      console.log('feedback_cycles cycleData:', cycleData);
-
-      if (
-        cycleData &&
-        cycleData.submissions_received % 10 === 0 &&
-        cycleData.submissions_received <= 50
-      ) {
-        const apiUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/generate-summary`;
-        await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            cycle_id: request.cycle_id,
-            user_id: request.sender_id,
-            submission_count: cycleData.submissions_received,
-          }),
-        });
-      }
+      if (fnError) throw new Error(fnError.message || 'Failed to submit feedback');
+      if (data?.error) throw new Error(data.error);
 
       router.replace({
         pathname: '/feedback/thank-you',
         params: { senderName: request.sender_name || 'them' },
       });
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to submit feedback');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to submit feedback');
     } finally {
       setSubmitting(false);
     }
@@ -317,7 +270,7 @@ export default function SubmitFeedbackScreen() {
             <Text style={styles.verifyButtonText}>Verify & Continue</Text>
           </TouchableOpacity>
           <Text style={styles.verificationHint}>
-            This link was sent specifically to you. If you didn't receive a verification code,
+            This link was sent specifically to you. If you didn&apos;t receive a verification code,
             please contact the person who sent you this link.
           </Text>
         </View>
