@@ -53,7 +53,7 @@ serve(async (req) => {
 
     // Send email
     const sendResult = await resend.emails.send({
-      from: "Growth <onboarding@resend.dev>",
+      from: "Growth <welcome@thatfeedbackapp.com>",
       to: email,
       subject: "Welcome to Growth",
       html: `
